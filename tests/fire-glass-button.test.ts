@@ -266,3 +266,32 @@ describe('status', () => {
     expect(el.palette).toBeNull();
   });
 });
+
+describe('effect', () => {
+  it('defaults to fire and reflects between attribute and property', () => {
+    const el = mount();
+    expect(el.effect).toBe('fire');
+    el.effect = 'water';
+    expect(el.getAttribute('effect')).toBe('water');
+    el.setAttribute('effect', 'fire');
+    expect(el.effect).toBe('fire');
+  });
+
+  it('falls back to fire for unknown effects', () => {
+    const el = mount();
+    el.setAttribute('effect', 'lava');
+    expect(el.effect).toBe('fire');
+  });
+
+  it('uses the aqua palette for water without a status, and the status palette with one', () => {
+    const el = mount();
+    el.effect = 'water';
+    expect(el.style.getPropertyValue('--fgb-icon-color')).toBe('#5fd4ff');
+    el.status = 'healthy';
+    expect(el.style.getPropertyValue('--fgb-icon-color')).toBe('#7df59a');
+    el.status = null;
+    expect(el.style.getPropertyValue('--fgb-icon-color')).toBe('#5fd4ff');
+    el.effect = 'fire';
+    expect(el.style.getPropertyValue('--fgb-icon-color')).toBe('#ffb864');
+  });
+});

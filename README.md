@@ -93,6 +93,26 @@ Changing the status crossfades the palette over about half a second.
   colour to override the status palette; set `null` to clear. The presets
   are exported as `STATUS_PRESETS` and `DEFAULT_PALETTE`.
 
+## Effects
+
+`effect="fire" | "water"` chooses what lives inside the glass. Fire is the
+default. Water is a lit liquid: a waving surface with a specular crest that
+sloshes slowly, caustic light patches fading with depth, rising bubbles and a
+faint mist. Hover raises the waves, pressing sends a ripple across, and a
+click splashes. Switching effects crossfades over about half a second.
+
+```html
+<fire-glass-button effect="water">Dive In →</fire-glass-button>
+<fire-glass-button effect="water" status="healthy">Healthy</fire-glass-button>
+```
+
+Status palettes tint water the same way they tint fire; without a status,
+water uses an aqua palette (`WATER_PALETTE`). The parameters keep their names
+but map naturally: `fire-height` is the water level, `turbulence` the wave
+amplitude, `fire-speed` the flow speed, `ember-density` the bubble count,
+`heat-distortion` the ripple detail. Effective values layer defaults, then
+the effect preset, then the status preset, then explicit attributes.
+
 ## API
 
 ### Parameters
@@ -160,11 +180,15 @@ below.
 Three fragment passes on one full-screen triangle, all in units of pill
 height so the look is identical at any size:
 
-1. **Fire** into a low-resolution HDR buffer (about 160 texels per pill
+1. **Effect** (fire or water) into a low-resolution HDR buffer (about 160 texels per pill
    height). Two domain-warped 3D simplex FBM layers advected upward, with
    time as the third noise axis so the field evolves rather than scrolls; a
    height cost that thins the tips; a temperature-to-colour ramp from deep
    red through orange and yellow to a white-hot HDR core; faint smoke.
+   Water uses the same buffer: travelling waves plus slosh for the surface,
+   a depth gradient, multiplied warped noise fields for caustics, hash-grid
+   bubbles. During an effect transition both programs render, weighted, into
+   the buffer.
 2. **Blur** at half that resolution, run twice. Used as bloom and as the
    fire's illuminance map for lighting the glass and the floor.
 3. **Composite** at device resolution: pill signed-distance field, a
@@ -201,6 +225,6 @@ glow against the pages it will live on. The choice persists and is
 addressable as `?bg=<key|#hex>`.
 
 `demo/index.html` (serve the package directory, e.g. `npx serve .`) shows
-the four status modes, idle, hover, pressed, sizes, mobile width, reduced
+the four status modes, water, idle, hover, pressed, sizes, mobile width, reduced
 motion and the CSS fallback, with a tuning panel for every parameter and an
 FPS readout.

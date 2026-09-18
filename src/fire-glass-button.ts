@@ -11,18 +11,22 @@ import { PARAM_ATTRS, PARAM_DEFS, type Params, attrToParam, defaults, parseParam
 import { type Layout, Renderer } from './renderer';
 import {
   DEFAULT_PALETTE,
+  EFFECT_PRESETS,
+  type EffectName,
   ICONS,
   type Palette,
   STATUS_PRESETS,
   type StatusName,
+  WATER_PALETTE,
   flattenPalette,
+  isEffect,
   isStatus,
 } from './status';
 import { STYLES } from './styles';
 
 export type { Params, ParamName } from './params';
-export type { Palette, StatusName, RGB } from './status';
-export { STATUS_NAMES, STATUS_PRESETS, DEFAULT_PALETTE } from './status';
+export type { Palette, StatusName, EffectName, RGB } from './status';
+export { STATUS_NAMES, STATUS_PRESETS, EFFECT_NAMES, DEFAULT_PALETTE, WATER_PALETTE } from './status';
 
 export interface StatusChangeDetail {
   oldStatus: StatusName | null;
@@ -37,6 +41,8 @@ const MAX_DPR = 2;
 const MAX_DT = 0.1;
 /** Palette crossfade rate (1/s) when the status changes. */
 const PALETTE_RATE = 5;
+/** Effect crossfade rate (1/s) when switching fire <-> water. */
+const EFFECT_RATE = 4;
 
 const TEMPLATE = document.createElement('template');
 TEMPLATE.innerHTML = `<style>${STYLES}</style>
@@ -54,7 +60,7 @@ export interface FireGlassButton extends Params {}
 // eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
 export class FireGlassButton extends HTMLElement {
   static get observedAttributes(): string[] {
-    return [...PARAM_ATTRS, 'disabled', 'status', 'icon'];
+    return [...PARAM_ATTRS, 'disabled', 'status', 'icon', 'effect'];
   }
 
   /** A copy of the default parameter set. */
@@ -84,6 +90,9 @@ export class FireGlassButton extends HTMLElement {
   /** Effective parameters: defaults, then status preset, then explicit. */
   #effective: Params = defaults();
   #status: StatusName | null = null;
+  #effect: EffectName = 'fire';
+  /** Eased 0 (fire) .. 1 (water) and its target. */
+  #effectMix = 0;
   #customPalette: Palette | null = null;
   /** Palette uploaded to the GPU (eased) and the one it is easing toward. */
   readonly #palette = flattenPalette(DEFAULT_PALETTE);
@@ -149,6 +158,16 @@ export class FireGlassButton extends HTMLElement {
   set status(v: StatusName | null) {
     if (v === null || v === undefined) this.removeAttribute('status');
     else this.setAttribute('status', v);
+  }
+
+  /** What lives inside the glass: 'fire' (default) or 'water'. */
+  get effect(): EffectName {
+    return this.#effect;
+  }
+
+  set effect(v: EffectName) {
+    if (v === 'fire') this.removeAttribute('effect');
+    else this.setAttribute('effect', v);
   }
 
   /** Custom palette overriding the status palette; null to clear. */
@@ -262,6 +281,14 @@ export class FireGlassButton extends HTMLElement {
       this.#renderIcon();
       return;
     }
+    if (name === 'effect') {
+      const next: EffectName = isEffect(value) ? value : 'fire';
+      if (next === this.#effect) return;
+      this.#effect = next;
+      if (!this.#hasRendered) this.#effectMix = next === 'water' ? 1 : 0;
+      this.#applyStatus();
+      return;
+    }
     const def = attrToParam(name);
     if (!def) return;
     if (value === null) delete this.#explicit[def.name];
@@ -273,13 +300,15 @@ export class FireGlassButton extends HTMLElement {
   // --------------------------------------------------------------- status
 
   #recomputeParams(): void {
-    const preset = this.#status ? STATUS_PRESETS[this.#status].params : {};
-    this.#effective = { ...defaults(), ...preset, ...this.#explicit };
+    const effectPreset = EFFECT_PRESETS[this.#effect].params;
+    const statusPreset = this.#status ? STATUS_PRESETS[this.#status].params : {};
+    this.#effective = { ...defaults(), ...effectPreset, ...statusPreset, ...this.#explicit };
   }
 
   #applyStatus(): void {
     const preset = this.#status ? STATUS_PRESETS[this.#status] : null;
-    const palette = this.#customPalette ?? preset?.palette ?? DEFAULT_PALETTE;
+    const effectDefault = this.#effect === 'water' ? WATER_PALETTE : DEFAULT_PALETTE;
+    const palette = this.#customPalette ?? preset?.palette ?? effectDefault;
     flattenPalette(palette, this.#paletteTarget);
     if (this.#hasRendered) {
       this.#paletteSettled = false;   // crossfade from the current colours
@@ -302,6 +331,15 @@ export class FireGlassButton extends HTMLElement {
     // Built-in icon is the slot's fallback content; a consumer's slot="icon"
     // element replaces it automatically.
     slot.innerHTML = preset ? ICONS[preset.icon] : '';
+  }
+
+  /** Ease the effect crossfade; returns true when settled. */
+  #stepEffect(dt: number): boolean {
+    const target = this.#effect === 'water' ? 1 : 0;
+    if (this.#effectMix === target) return true;
+    this.#effectMix = expSmooth(this.#effectMix, target, EFFECT_RATE, dt);
+    if (Math.abs(this.#effectMix - target) < 2e-3) this.#effectMix = target;
+    return this.#effectMix === target;
   }
 
   /** Ease the uploaded palette toward the target; returns true when settled. */
@@ -418,7 +456,9 @@ export class FireGlassButton extends HTMLElement {
     const dt = this.#lastNow ? Math.min(MAX_DT, (now - this.#lastNow) / 1000) : 0;
     this.#lastNow = now;
 
-    const settled = this.#interaction.step(dt) && this.#stepPalette(dt);
+    const paletteSettled = this.#stepPalette(dt);
+    const effectSettled = this.#stepEffect(dt);
+    const settled = this.#interaction.step(dt) && paletteSettled && effectSettled;
     const reduced = this.#reduced;
     if (!reduced) this.#fireTime += dt * this.#effective.fireSpeed;
 
@@ -430,6 +470,7 @@ export class FireGlassButton extends HTMLElement {
       params: this.#effective,
       hover: s.hover,
       palette: this.#palette,
+      effectMix: this.#effectMix,
       press: s.press,
       pulse: s.pulse,
       pointerX: s.pointerX,

@@ -114,6 +114,44 @@ export const STATUS_PRESETS: Readonly<Record<StatusName, StatusPreset>> = {
   },
 };
 
+// ---------------------------------------------------------------- effects
+
+export const EFFECT_NAMES = ['fire', 'water'] as const;
+export type EffectName = (typeof EFFECT_NAMES)[number];
+
+/** Default palette for effect="water" when no status is set: deep teal to pale cyan. */
+export const WATER_PALETTE: Palette = {
+  fire: [
+    [0.0, 0.05, 0.14],
+    [0.0, 0.22, 0.55],
+    [0.05, 0.6, 1.1],
+    [0.45, 1.5, 2.1],
+    [1.8, 2.8, 3.2],
+  ],
+  rim: [0.3, 0.75, 1.0],
+  icon: '#5fd4ff',
+};
+
+export interface EffectPreset {
+  /** Parameter nudges applied under the status preset and explicit attributes. */
+  params: Partial<Params>;
+}
+
+/**
+ * Effect presets. The parameter names keep their fire meaning in the API;
+ * for water they map to: fireHeight -> water level, turbulence -> wave
+ * amplitude, fireSpeed -> flow speed, emberDensity -> bubbles and sparkle,
+ * fireIntensity -> brightness, heatDistortion -> surface shimmer.
+ */
+export const EFFECT_PRESETS: Readonly<Record<EffectName, EffectPreset>> = {
+  fire: { params: {} },
+  water: { params: {} },
+};
+
+export function isEffect(v: unknown): v is EffectName {
+  return typeof v === 'string' && (EFFECT_NAMES as readonly string[]).includes(v);
+}
+
 export function isStatus(v: unknown): v is StatusName {
   return typeof v === 'string' && (STATUS_NAMES as readonly string[]).includes(v);
 }

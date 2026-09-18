@@ -23,6 +23,7 @@ import { BLUR_FRAG } from './shaders/blur.frag';
 import { COMPOSITE_FRAG } from './shaders/composite.frag';
 import { FIRE_FRAG } from './shaders/fire.frag';
 import { QUAD_VERT } from './shaders/quad.vert';
+import { WATER_FRAG } from './shaders/water.frag';
 
 export interface RenderFrame {
   /** Fire time in seconds (already scaled by fireSpeed, frozen under reduced motion). */
@@ -36,6 +37,8 @@ export interface RenderFrame {
   pointerY: number;
   /** Flattened palette: 5 fire ramp colours then the rim tint (18 floats, see status.ts). */
   palette: Float32Array;
+  /** Effect crossfade: 0 = fire, 1 = water, in between during a transition. */
+  effectMix: number;
 }
 
 /** Canvas and pill rectangle in device pixels; pill y is measured from the top. */
@@ -58,7 +61,7 @@ const BLOOM_SCALE = 0.5;
 /** Peak HDR value expected from the fire shader; used to encode into RGBA8 when floats are unavailable. */
 const HDR_RANGE = 6;
 
-const FIRE_UNIFORMS = ['uExtent', 'uHalfW', 'uTime', 'uHover', 'uPress', 'uPulse', 'uEncode', 'uParams', 'uFireRamp'] as const;
+const EFFECT_UNIFORMS = ['uExtent', 'uHalfW', 'uTime', 'uHover', 'uPress', 'uPulse', 'uEncode', 'uFade', 'uParams', 'uFireRamp'] as const;
 const BLUR_UNIFORMS = ['uSrc', 'uDir'] as const;
 const COMPOSITE_UNIFORMS = [
   'uRes',
@@ -110,9 +113,11 @@ export class Renderer {
   private layout: Layout | null = null;
   private readonly vao: WebGLVertexArrayObject | null;
   private readonly fireProg: WebGLProgram;
+  private readonly waterProg: WebGLProgram;
   private readonly blurProg: WebGLProgram;
   private readonly compositeProg: WebGLProgram;
   private readonly fireU: Uniforms;
+  private readonly waterU: Uniforms;
   private readonly blurU: Uniforms;
   private readonly compositeU: Uniforms;
   private readonly paramBuf = new Float32Array(12);
@@ -130,9 +135,11 @@ export class Renderer {
     this.encode = this.hdr ? 1 : 1 / HDR_RANGE;
     this.vao = gl.createVertexArray();
     this.fireProg = createProgram(gl, QUAD_VERT, FIRE_FRAG);
+    this.waterProg = createProgram(gl, QUAD_VERT, WATER_FRAG);
     this.blurProg = createProgram(gl, QUAD_VERT, BLUR_FRAG);
     this.compositeProg = createProgram(gl, QUAD_VERT, COMPOSITE_FRAG);
-    this.fireU = getUniforms(gl, this.fireProg, FIRE_UNIFORMS);
+    this.fireU = getUniforms(gl, this.fireProg, EFFECT_UNIFORMS);
+    this.waterU = getUniforms(gl, this.waterProg, EFFECT_UNIFORMS);
     this.blurU = getUniforms(gl, this.blurProg, BLUR_UNIFORMS);
     this.compositeU = getUniforms(gl, this.compositeProg, COMPOSITE_UNIFORMS);
     gl.disable(gl.DEPTH_TEST);
@@ -182,21 +189,22 @@ export class Renderer {
     gl.bindVertexArray(this.vao);
     const halfW = L.pillW / L.pillH / 2;
 
-    // --- 1. fire -> fireTarget ---
+    // --- 1. effect(s) -> fireTarget ---
+    // During an effect transition both passes run: the first replaces the
+    // buffer, the second adds (premultiplied), each weighted by uFade.
     gl.bindFramebuffer(gl.FRAMEBUFFER, fire.fbo);
     gl.viewport(0, 0, fire.width, fire.height);
-    gl.useProgram(this.fireProg);
-    let u = this.fireU;
-    gl.uniform2f(u.uExtent, this.fireExtent.x, this.fireExtent.y);
-    gl.uniform1f(u.uHalfW, halfW);
-    gl.uniform1f(u.uTime, frame.time);
-    gl.uniform1f(u.uHover, frame.hover);
-    gl.uniform1f(u.uPress, frame.press);
-    gl.uniform1f(u.uPulse, frame.pulse);
-    gl.uniform1f(u.uEncode, this.encode);
-    gl.uniform4fv(u.uParams, this.paramBuf);
-    gl.uniform3fv(u.uFireRamp, frame.palette, 0, 15);
-    gl.drawArrays(gl.TRIANGLES, 0, 3);
+    const mix = Math.min(1, Math.max(0, frame.effectMix));
+    let first = true;
+    if (mix < 1) {
+      this.drawEffect(this.fireProg, this.fireU, frame, halfW, 1 - mix, first);
+      first = false;
+    }
+    if (mix > 0) {
+      this.drawEffect(this.waterProg, this.waterU, frame, halfW, mix, first);
+    }
+    gl.disable(gl.BLEND);
+    let u: Uniforms;
 
     // --- 2. bloom: horizontal blur (also downsamples) then vertical ---
     gl.useProgram(this.blurProg);
@@ -261,6 +269,28 @@ export class Renderer {
     gl.bindVertexArray(null);
   }
 
+  private drawEffect(prog: WebGLProgram, u: Uniforms, frame: RenderFrame, halfW: number, fade: number, replace: boolean): void {
+    const { gl } = this;
+    if (replace) {
+      gl.disable(gl.BLEND);
+    } else {
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.ONE, gl.ONE);
+    }
+    gl.useProgram(prog);
+    gl.uniform2f(u.uExtent, this.fireExtent.x, this.fireExtent.y);
+    gl.uniform1f(u.uHalfW, halfW);
+    gl.uniform1f(u.uTime, frame.time);
+    gl.uniform1f(u.uHover, frame.hover);
+    gl.uniform1f(u.uPress, frame.press);
+    gl.uniform1f(u.uPulse, frame.pulse);
+    gl.uniform1f(u.uEncode, this.encode);
+    gl.uniform1f(u.uFade, fade);
+    gl.uniform4fv(u.uParams, this.paramBuf);
+    gl.uniform3fv(u.uFireRamp, frame.palette, 0, 15);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+  }
+
   dispose(): void {
     const { gl } = this;
     deleteRenderTarget(gl, this.fireTarget);
@@ -268,6 +298,7 @@ export class Renderer {
     deleteRenderTarget(gl, this.bloomB);
     this.fireTarget = this.bloomA = this.bloomB = null;
     gl.deleteProgram(this.fireProg);
+    gl.deleteProgram(this.waterProg);
     gl.deleteProgram(this.blurProg);
     gl.deleteProgram(this.compositeProg);
     gl.deleteVertexArray(this.vao);

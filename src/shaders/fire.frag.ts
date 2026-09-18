@@ -43,6 +43,7 @@ uniform float uHover;
 uniform float uPress;
 uniform float uPulse;
 uniform float uEncode;  // 1.0 for float targets, <1 to fit HDR into 8 bits
+uniform float uFade;    // crossfade weight for this effect (see renderer)
 uniform vec4 uParams[3];
 uniform vec3 uFireRamp[5]; // temperature ramp: edge, low, mid, hot, core (linear HDR)
 
@@ -136,6 +137,6 @@ void main() {
 
   vec3 rgb = fire + smoke;
   float a = clamp(alpha + smokeA, 0.0, 1.0);
-  fragColor = vec4(rgb * uEncode, a);
+  fragColor = vec4(rgb * uEncode, a) * uFade;
 }
 `;

@@ -84,6 +84,21 @@
     <fire-glass-button class="l" status="unknown">Unknown</fire-glass-button>
   </section>
 
+  <h2>Water</h2>
+  <p><code>effect="water"</code> swaps the combustion for a lit liquid: a waving surface with a specular crest, caustics, rising bubbles and a faint mist. Status palettes tint it; without a status it is aqua. Switching effects crossfades. Hover raises the waves; pressing sends a ripple across.</p>
+  <div class="controls">
+    <label>Hero effect: <select id="hero-effect">
+      <option value="fire">fire</option>
+      <option value="water">water</option>
+    </select></label>
+  </div>
+  <section id="water" class="grid">
+    <fire-glass-button class="l" effect="water">Dive In →</fire-glass-button>
+    <fire-glass-button class="l" effect="water" status="healthy">Healthy</fire-glass-button>
+    <fire-glass-button class="l" effect="water" status="warning">Warning</fire-glass-button>
+    <fire-glass-button class="l" effect="water" status="trouble">Trouble</fire-glass-button>
+  </section>
+
   <h2>States</h2>
   <p>Idle burns low. Hovering raises the flames, the lower glass illumination and the rim brightness over a few hundred milliseconds. Moving the pointer slides the key light across the glass. Pressing compresses the pill slightly and pulses the fire, then relaxes with no bounce.</p>
   <div class="controls">
@@ -236,6 +251,9 @@
   });
   document.getElementById('hero-status').addEventListener('change', (e) => {
     hero.status = e.target.value || null;
+  });
+  document.getElementById('hero-effect').addEventListener('change', (e) => {
+    hero.effect = e.target.value;
   });
   document.getElementById('disabled').addEventListener('change', (e) => {
     stateButton.disabled = e.target.checked;
