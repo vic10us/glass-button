@@ -1,7 +1,7 @@
 {
   "name": "glass-button",
   "version": "0.1.0",
-  "description": "Photorealistic WebGL2 glass pill button with procedural fire burning inside it.",
+  "description": "Photorealistic WebGL2 glass pill button with procedural fire/water inside it.",
   "type": "module",
   "main": "./dist/glass-button.js",
   "module": "./dist/glass-button.js",
