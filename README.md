@@ -315,6 +315,6 @@ FPS readout.
 
 ## Design notes
 
-The original brief and reference renders are in `docs/brief/`; the design
-spec and implementation plan the component was built from are in
-`docs/design/` (they use the component's original name, fire-glass-button).
+The reference renders the component was tuned against are in `docs/brief/`,
+and the design spec is in `docs/design/` (it uses the component's original
+name, fire-glass-button).
