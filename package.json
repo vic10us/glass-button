@@ -16,6 +16,14 @@
   ],
   "author": "vic10us",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vic10us/glass-button.git"
+  },
+  "homepage": "https://github.com/vic10us/glass-button#readme",
+  "bugs": {
+    "url": "https://github.com/vic10us/glass-button/issues"
+  },
   "type": "module",
   "sideEffects": true,
   "main": "./dist/glass-button.js",

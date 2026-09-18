@@ -308,7 +308,13 @@ mesh and paper presets plus a custom colour, so you can judge the glass and
 glow against the pages it will live on. The choice persists and is
 addressable as `?bg=<key|#hex>`.
 
-`demo/index.html` (serve the package directory, e.g. `npx serve .`) shows
+`demo/index.html` (serve the repo root, e.g. `npx serve .`) shows
 the four status modes, water, idle, hover, pressed, sizes, mobile width, reduced
 motion and the CSS fallback, with a tuning panel for every parameter and an
 FPS readout.
+
+## Design notes
+
+The original brief and reference renders are in `docs/brief/`; the design
+spec and implementation plan the component was built from are in
+`docs/design/` (they use the component's original name, fire-glass-button).
