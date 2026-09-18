@@ -38,6 +38,10 @@ uniform float uPress;
 uniform float uPulse;
 uniform vec2 uPointer;     // eased pointer, pill-normalised (-1..1), y up
 uniform vec4 uParams[3];
+uniform vec2 uFireExtent;  // half-extent of the fire buffer in pill units
+uniform sampler2D uFire;   // premultiplied HDR fire (see fire.frag)
+uniform sampler2D uBloom;  // blurred fire: bloom and illuminance
+uniform float uDecode;     // undoes the fire pass encode scale
 
 #define P_FIRE_INTENSITY  uParams[0].x
 #define P_FIRE_HEIGHT     uParams[0].y
@@ -158,8 +162,14 @@ void main() {
   vec3 body = vec3(0.010, 0.011, 0.014);
   float bodyA = P_GLASS_OPACITY;
 
-  vec3 color = body * bodyA * (1.0 - F) + reflection;
+  // Fire seen through the front surface (stage 3: no refraction yet).
+  vec2 fireUv = (p / uFireExtent) * 0.5 + 0.5;
+  vec4 fire = texture(uFire, fireUv);
+  fire.rgb *= uDecode;
+
+  vec3 color = body * bodyA * (1.0 - F) + fire.rgb * (1.0 - F) + reflection;
   float alpha = bodyA + (1.0 - bodyA) * F;
+  alpha = alpha + fire.a * (1.0 - alpha);
 
   // color is already light-weighted (premultiplied): tonemap, encode, mask.
   fragColor = vec4(linearToSrgb(aces(color)) * mask, alpha * mask);
