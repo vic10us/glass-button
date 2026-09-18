@@ -11,6 +11,15 @@ stays sharp, focusable and accessible.
 
 Zero runtime dependencies. Ships as ESM and as a plain `<script>` IIFE.
 
+**[Live demo](https://vic10us.github.io/glass-button/)** — hover, press, switch
+effect and status, tune every parameter, try it on different backgrounds.
+
+[![glass-button hero: dark glass pill with fire inside](docs/media/hero.png)](https://vic10us.github.io/glass-button/)
+
+[![The four status modes](docs/media/statuses.png)](https://vic10us.github.io/glass-button/)
+
+[![The water effect](docs/media/water.png)](https://vic10us.github.io/glass-button/)
+
 ## Install
 
 ```bash
@@ -308,7 +317,9 @@ mesh and paper presets plus a custom colour, so you can judge the glass and
 glow against the pages it will live on. The choice persists and is
 addressable as `?bg=<key|#hex>`.
 
-`demo/index.html` (serve the repo root, e.g. `npx serve .`) shows
+`demo/index.html` (serve the repo root, e.g. `npx serve .`) is the same
+page that GitHub Pages publishes from `main` via
+`.github/workflows/pages.yml`. It shows
 the four status modes, water, idle, hover, pressed, sizes, mobile width, reduced
 motion and the CSS fallback, with a tuning panel for every parameter and an
 FPS readout.
