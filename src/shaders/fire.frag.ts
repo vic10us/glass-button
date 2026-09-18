@@ -99,25 +99,33 @@ void main() {
   // toward the rounded ends where the flames climb the end walls.
   float endT = smoothstep(0.55, 1.0, abs(x) / max(uHalfW, 0.5));
   float endLift = endT * 0.30;
-  float ceilH = (0.40 + endLift) * P_FIRE_HEIGHT * (1.0 + 0.33 * hover + 0.12 * press);
+  float ceilH = (0.40 + endLift) * P_FIRE_HEIGHT * (1.0 + 0.22 * hover + 0.10 * press);
   float h = fy / max(ceilH, 1e-3);
 
-  float noise = n0 * 0.9 + n1 * 0.12 + rd * 0.16;
+  float noise = n0 * 0.92 + n1 * 0.09 + rd * 0.13;
   // Gaps between tongues exist even at the base; survival gets sparse
   // toward the ceiling.
   float density = noise * 1.9 - 0.78 - h * h * 0.8 - h * 0.25;
   // The base is always burning: a thin bright fuel line along the bottom.
-  density += 0.3 * exp(-fy * 10.0);
-  // Flames must not leak below the pill or far above the ceiling.
-  density *= smoothstep(-0.06, 0.02, fy);
+  density += 0.3 * exp(-abs(fy) * 10.0);
+  // The fuel line continues a little below the pill's bottom edge so the
+  // bottom fillet's refraction has something bright to magnify; the
+  // composite pass clips it to the silhouette. Nothing far above the ceiling.
+  density *= smoothstep(-0.14, -0.07, fy);
+  // Confine combustion to the pill silhouette (the bottom is treated as
+  // extending downward so the fuel line below the edge survives).
+  vec2 pp = vec2(x, max(fy, 0.02) - 0.5);
+  vec2 pq = vec2(max(abs(pp.x) - (uHalfW - 0.5), 0.0), pp.y);
+  float dPill = length(pq) - 0.5;
+  density *= 1.0 - smoothstep(-0.04, 0.03, dPill);
   density *= 1.0 - smoothstep(1.15, 1.6, h);
 
-  float intensity = P_FIRE_INTENSITY * (1.0 + 0.30 * hover + 0.25 * press + 0.35 * uPulse);
+  float intensity = P_FIRE_INTENSITY * (1.0 + 0.22 * hover + 0.18 * press + 0.30 * uPulse);
   float heat = max(density, 0.0) * intensity;
 
   // ---- 4. colour ----------------------------------------------------------
   vec3 col = fireColor(heat);
-  float alpha = smoothstep(0.0, 0.2, heat);
+  float alpha = smoothstep(0.0, 0.26, heat);
   // Tips thin out and go translucent.
   alpha *= 1.0 - 0.55 * smoothstep(0.55, 1.2, h);
   // Brightness rises with heat; keep the red edges dim so they stay edge-like.
@@ -126,7 +134,8 @@ void main() {
   // ---- 5. smoke -----------------------------------------------------------
   float sm = fbm(vec3(x * 2.0 + wind.x * 0.4, fy * 2.4 - t * 0.5, t * 0.2 + 40.0));
   float smokeBand = smoothstep(ceilH * 0.7, ceilH * 1.4, fy) * (1.0 - smoothstep(ceilH * 1.5, ceilH * 3.4, fy));
-  float smokeA = smoothstep(0.5, 0.9, sm) * smokeBand * 0.035 * intensity;
+  float smokeA = smoothstep(0.5, 0.9, sm) * smokeBand * 0.02 * intensity;
+  smokeA *= 1.0 - smoothstep(-0.1, 0.0, dPill);
   vec3 smoke = vec3(0.30, 0.26, 0.24) * smokeA;
 
   vec3 rgb = fire + smoke;
