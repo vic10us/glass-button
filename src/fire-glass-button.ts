@@ -6,12 +6,28 @@
  * the glow beneath it. This file owns the DOM, attribute/property plumbing,
  * accessibility and the frame loop; all shading lives in the renderer.
  */
-import { InteractionState } from './interaction';
+import { InteractionState, expSmooth } from './interaction';
 import { PARAM_ATTRS, PARAM_DEFS, type Params, attrToParam, defaults, parseParam } from './params';
 import { type Layout, Renderer } from './renderer';
+import {
+  DEFAULT_PALETTE,
+  ICONS,
+  type Palette,
+  STATUS_PRESETS,
+  type StatusName,
+  flattenPalette,
+  isStatus,
+} from './status';
 import { STYLES } from './styles';
 
 export type { Params, ParamName } from './params';
+export type { Palette, StatusName, RGB } from './status';
+export { STATUS_NAMES, STATUS_PRESETS, DEFAULT_PALETTE } from './status';
+
+export interface StatusChangeDetail {
+  oldStatus: StatusName | null;
+  newStatus: StatusName | null;
+}
 
 /** Canvas padding around the pill, as multiples of the pill height (room for glow). */
 const PAD_X = 0.9;
@@ -19,12 +35,17 @@ const PAD_TOP = 0.9;
 const PAD_BOTTOM = 1.7;
 const MAX_DPR = 2;
 const MAX_DT = 0.1;
+/** Palette crossfade rate (1/s) when the status changes. */
+const PALETTE_RATE = 5;
 
 const TEMPLATE = document.createElement('template');
 TEMPLATE.innerHTML = `<style>${STYLES}</style>
 <div class="frame">
   <canvas aria-hidden="true"></canvas>
-  <button part="button" type="button"><span class="label"><slot></slot></span></button>
+  <button part="button" type="button">
+    <span class="label"><span class="icon" part="icon" hidden><slot name="icon"></slot></span><slot></slot></span>
+    <span class="sr-status"></span>
+  </button>
 </div>`;
 
 // eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
@@ -33,7 +54,7 @@ export interface FireGlassButton extends Params {}
 // eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
 export class FireGlassButton extends HTMLElement {
   static get observedAttributes(): string[] {
-    return [...PARAM_ATTRS, 'disabled'];
+    return [...PARAM_ATTRS, 'disabled', 'status', 'icon'];
   }
 
   /** A copy of the default parameter set. */
@@ -49,7 +70,7 @@ export class FireGlassButton extends HTMLElement {
         configurable: true,
         enumerable: true,
         get(this: FireGlassButton): number {
-          return this.#params[def.name];
+          return this.#effective[def.name];
         },
         set(this: FireGlassButton, v: number) {
           this.setAttribute(def.attr, String(parseParam(def, v)));
@@ -58,10 +79,22 @@ export class FireGlassButton extends HTMLElement {
     }
   }
 
-  #params: Params = defaults();
+  /** Parameters set explicitly through attributes. */
+  #explicit: Partial<Params> = {};
+  /** Effective parameters: defaults, then status preset, then explicit. */
+  #effective: Params = defaults();
+  #status: StatusName | null = null;
+  #customPalette: Palette | null = null;
+  /** Palette uploaded to the GPU (eased) and the one it is easing toward. */
+  readonly #palette = flattenPalette(DEFAULT_PALETTE);
+  readonly #paletteTarget = flattenPalette(DEFAULT_PALETTE);
+  #paletteSettled = true;
+  #hasRendered = false;
   readonly #frame: HTMLDivElement;
   readonly #canvas: HTMLCanvasElement;
   readonly #button: HTMLButtonElement;
+  readonly #icon: HTMLSpanElement;
+  readonly #srStatus: HTMLSpanElement;
   readonly #interaction = new InteractionState();
 
   #renderer: Renderer | null = null;
@@ -86,14 +119,16 @@ export class FireGlassButton extends HTMLElement {
     this.#frame = root.querySelector('.frame')!;
     this.#canvas = root.querySelector('canvas')!;
     this.#button = root.querySelector('button')!;
+    this.#icon = root.querySelector('.icon')!;
+    this.#srStatus = root.querySelector('.sr-status')!;
     this.#bindEvents();
   }
 
   // ---------------------------------------------------------------- public API
 
-  /** All parameters as a plain object. Setting merges the given keys. */
+  /** All effective parameters as a plain object. Setting merges the given keys. */
   get params(): Params {
-    return { ...this.#params };
+    return { ...this.#effective };
   }
 
   set params(patch: Partial<Params>) {
@@ -101,6 +136,29 @@ export class FireGlassButton extends HTMLElement {
       const v = patch[def.name];
       if (v !== undefined) this[def.name] = v;
     }
+  }
+
+  /**
+   * Status mode: recolours the fire, rim and floor glow, shows the matching
+   * icon and applies the preset's parameter nudges. null is the default look.
+   */
+  get status(): StatusName | null {
+    return this.#status;
+  }
+
+  set status(v: StatusName | null) {
+    if (v === null || v === undefined) this.removeAttribute('status');
+    else this.setAttribute('status', v);
+  }
+
+  /** Custom palette overriding the status palette; null to clear. */
+  get palette(): Palette | null {
+    return this.#customPalette;
+  }
+
+  set palette(p: Palette | null) {
+    this.#customPalette = p;
+    this.#applyStatus();
   }
 
   /** Which renderer is active. */
@@ -185,10 +243,80 @@ export class FireGlassButton extends HTMLElement {
       this.#wake();
       return;
     }
+    if (name === 'status') {
+      const next = isStatus(value) ? value : null;
+      if (next === this.#status) return;
+      const old = this.#status;
+      this.#status = next;
+      this.#applyStatus();
+      this.dispatchEvent(
+        new CustomEvent<StatusChangeDetail>('statuschange', {
+          detail: { oldStatus: old, newStatus: next },
+          bubbles: true,
+          composed: true,
+        }),
+      );
+      return;
+    }
+    if (name === 'icon') {
+      this.#renderIcon();
+      return;
+    }
     const def = attrToParam(name);
     if (!def) return;
-    this.#params[def.name] = parseParam(def, value);
+    if (value === null) delete this.#explicit[def.name];
+    else this.#explicit[def.name] = parseParam(def, value);
+    this.#recomputeParams();
     this.#wake();
+  }
+
+  // --------------------------------------------------------------- status
+
+  #recomputeParams(): void {
+    const preset = this.#status ? STATUS_PRESETS[this.#status].params : {};
+    this.#effective = { ...defaults(), ...preset, ...this.#explicit };
+  }
+
+  #applyStatus(): void {
+    const preset = this.#status ? STATUS_PRESETS[this.#status] : null;
+    const palette = this.#customPalette ?? preset?.palette ?? DEFAULT_PALETTE;
+    flattenPalette(palette, this.#paletteTarget);
+    if (this.#hasRendered) {
+      this.#paletteSettled = false;   // crossfade from the current colours
+    } else {
+      this.#palette.set(this.#paletteTarget); // first paint: show the status immediately
+      this.#paletteSettled = true;
+    }
+    this.style.setProperty('--fgb-icon-color', palette.icon);
+    this.#srStatus.textContent = preset ? `Status: ${preset.label}` : '';
+    this.#recomputeParams();
+    this.#renderIcon();
+    this.#wake();
+  }
+
+  #renderIcon(): void {
+    const preset = this.#status ? STATUS_PRESETS[this.#status] : null;
+    const slot = this.#icon.querySelector('slot')!;
+    const hide = !preset || this.getAttribute('icon') === 'none';
+    this.#icon.toggleAttribute('hidden', hide);
+    // Built-in icon is the slot's fallback content; a consumer's slot="icon"
+    // element replaces it automatically.
+    slot.innerHTML = preset ? ICONS[preset.icon] : '';
+  }
+
+  /** Ease the uploaded palette toward the target; returns true when settled. */
+  #stepPalette(dt: number): boolean {
+    if (this.#paletteSettled) return true;
+    let maxDiff = 0;
+    for (let i = 0; i < this.#palette.length; i++) {
+      this.#palette[i] = expSmooth(this.#palette[i], this.#paletteTarget[i], PALETTE_RATE, dt);
+      maxDiff = Math.max(maxDiff, Math.abs(this.#palette[i] - this.#paletteTarget[i]));
+    }
+    if (maxDiff < 2e-3) {
+      this.#palette.set(this.#paletteTarget);
+      this.#paletteSettled = true;
+    }
+    return this.#paletteSettled;
   }
 
   // ------------------------------------------------------------------ rendering
@@ -290,16 +418,18 @@ export class FireGlassButton extends HTMLElement {
     const dt = this.#lastNow ? Math.min(MAX_DT, (now - this.#lastNow) / 1000) : 0;
     this.#lastNow = now;
 
-    const settled = this.#interaction.step(dt);
+    const settled = this.#interaction.step(dt) && this.#stepPalette(dt);
     const reduced = this.#reduced;
-    if (!reduced) this.#fireTime += dt * this.#params.fireSpeed;
+    if (!reduced) this.#fireTime += dt * this.#effective.fireSpeed;
 
     const s = this.#interaction.state;
+    this.#hasRendered = true;
     renderer.render({
       time: this.#fireTime,
       dt,
-      params: this.#params,
+      params: this.#effective,
       hover: s.hover,
+      palette: this.#palette,
       press: s.press,
       pulse: s.pulse,
       pointerX: s.pointerX,

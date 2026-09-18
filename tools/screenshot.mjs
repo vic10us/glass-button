@@ -4,7 +4,7 @@
  *
  *   node tools/screenshot.mjs [scene ...] [--wait=ms] [--out=dir]
  *
- * Scenes: idle, hover, press, sizes, mobile, reduced, fallback, all (default: idle).
+ * Scenes: idle, hover, press, sizes, mobile, reduced, fallback, status, all (default: idle).
  * Serves the package directory over HTTP (modules need a real origin), drives
  * Chromium with SwiftShader so WebGL2 works without a GPU, forwards console
  * output, and writes PNGs to shots/<scene>.png.
@@ -21,7 +21,7 @@ const args = process.argv.slice(2);
 const flags = Object.fromEntries(args.filter((a) => a.startsWith('--')).map((a) => a.slice(2).split('=')));
 let scenes = args.filter((a) => !a.startsWith('--'));
 if (scenes.length === 0) scenes = ['idle'];
-if (scenes.includes('all')) scenes = ['idle', 'hover', 'press', 'sizes', 'mobile', 'reduced', 'fallback'];
+if (scenes.includes('all')) scenes = ['idle', 'hover', 'press', 'sizes', 'mobile', 'reduced', 'fallback', 'status'];
 const wait = Number(flags.wait ?? 1500);
 const outDir = resolve(root, flags.out ?? 'shots');
 const scale = Number(flags.scale ?? 2);
@@ -88,6 +88,8 @@ for (const scene of scenes) {
     target = page.locator('#mobile');
   } else if (scene === 'fallback') {
     target = page.locator('#fallback');
+  } else if (scene === 'status') {
+    target = page.locator('#statuses');
   }
 
   await page.waitForTimeout(wait);

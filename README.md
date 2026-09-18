@@ -62,13 +62,46 @@ Add `CUSTOM_ELEMENTS_SCHEMA` to the consuming module, then:
 <fire-glass-button [attr.fire-intensity]="intensity" (click)="go()">Take Action →</fire-glass-button>
 ```
 
+## Status modes
+
+`status="healthy" | "warning" | "trouble" | "unknown"` recolours the fire,
+the glass rim and the floor glow, shows a matching line icon (check circle,
+warning triangle, cross circle, question circle) and applies a few preset
+parameter nudges (Unknown burns lower and sparklier, like plasma). Without
+a status the button keeps the default orange fire and shows no icon.
+Changing the status crossfades the palette over about half a second.
+
+```html
+<fire-glass-button status="healthy">Healthy</fire-glass-button>
+<fire-glass-button status="trouble" icon="none">Trouble</fire-glass-button>
+<fire-glass-button status="warning">
+  <svg slot="icon" viewBox="0 0 24 24">…</svg>
+  Warning
+</fire-glass-button>
+```
+
+- `status` property mirrors the attribute; `null` clears it. Invalid values
+  are ignored.
+- `statuschange`: `CustomEvent<{ oldStatus, newStatus }>` after a change.
+- `icon="none"` hides the built-in icon; an element with `slot="icon"`
+  replaces it. `::part(icon)` styles the icon wrapper, and
+  `--fgb-icon-color` is set from the palette (override it if you like).
+- A visually hidden "Status: healthy" span inside the button announces the
+  state to assistive technology whatever the visible label says.
+- `palette` property: supply `{ fire: [edge, low, mid, hot, core], rim, icon }`
+  with linear-light RGB triples (HDR values above 1 are fine) and a CSS icon
+  colour to override the status palette; set `null` to clear. The presets
+  are exported as `STATUS_PRESETS` and `DEFAULT_PALETTE`.
+
 ## API
 
 ### Parameters
 
 Every parameter is a number available as a kebab-case attribute and a
 camelCase property. Values outside the range are clamped; unparseable values
-fall back to the default.
+fall back to the default. Effective values layer defaults, then the status
+preset, then explicit attributes; removing an attribute reveals the layer
+below.
 
 | Attribute | Property | Default | Range | Effect |
 |---|---|---|---|---|
@@ -160,5 +193,6 @@ npm run shot -- all   # headless Chromium screenshots of demo scenes -> shots/
 ```
 
 `demo/index.html` (serve the package directory, e.g. `npx serve .`) shows
-idle, hover, pressed, sizes, mobile width, reduced motion and the CSS
-fallback, with a tuning panel for every parameter and an FPS readout.
+the four status modes, idle, hover, pressed, sizes, mobile width, reduced
+motion and the CSS fallback, with a tuning panel for every parameter and an
+FPS readout.

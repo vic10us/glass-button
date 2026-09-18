@@ -192,3 +192,77 @@ describe('lifecycle', () => {
     expect(remove).toHaveBeenCalledWith('visibilitychange', expect.any(Function));
   });
 });
+
+describe('status', () => {
+  it('has no status by default and renders no icon or status text', () => {
+    const el = mount();
+    expect(el.status).toBeNull();
+    const root = el.shadowRoot!;
+    expect(root.querySelector('.icon svg')).toBeNull();
+    expect(root.querySelector('.sr-status')!.textContent).toBe('');
+  });
+
+  it('reflects status between attribute and property and renders the matching icon', () => {
+    const el = mount('Server A');
+    el.status = 'healthy';
+    expect(el.getAttribute('status')).toBe('healthy');
+    const root = el.shadowRoot!;
+    expect(root.querySelector('.icon svg')).not.toBeNull();
+    expect(root.querySelector('.sr-status')!.textContent).toBe('Status: healthy');
+    el.setAttribute('status', 'trouble');
+    expect(el.status).toBe('trouble');
+    expect(root.querySelector('.icon svg path')!.getAttribute('d')).toContain('8.8');
+  });
+
+  it('ignores invalid statuses', () => {
+    const el = mount();
+    el.setAttribute('status', 'bogus');
+    expect(el.status).toBeNull();
+    expect(el.shadowRoot!.querySelector('.icon svg')).toBeNull();
+  });
+
+  it('fires statuschange with old and new values', () => {
+    const el = mount();
+    const events: Array<{ oldStatus: string | null; newStatus: string | null }> = [];
+    el.addEventListener('statuschange', (e) => events.push((e as CustomEvent).detail));
+    el.status = 'warning';
+    el.status = 'unknown';
+    el.status = null;
+    expect(events).toEqual([
+      { oldStatus: null, newStatus: 'warning' },
+      { oldStatus: 'warning', newStatus: 'unknown' },
+      { oldStatus: 'unknown', newStatus: null },
+    ]);
+  });
+
+  it('applies preset parameter nudges under explicit attributes', () => {
+    const el = mount();
+    el.status = 'unknown';
+    expect(el.fireHeight).toBeCloseTo(0.85);
+    el.fireHeight = 1.5;
+    expect(el.fireHeight).toBe(1.5);
+    el.status = 'healthy';
+    expect(el.fireHeight).toBe(1.5);
+    el.removeAttribute('fire-height');
+    expect(el.fireHeight).toBe(1);
+  });
+
+  it('hides the icon with icon="none" and exposes the icon colour', () => {
+    const el = mount();
+    el.status = 'healthy';
+    const root = el.shadowRoot!;
+    expect(root.querySelector('.icon')!.hasAttribute('hidden')).toBe(false);
+    el.setAttribute('icon', 'none');
+    expect(root.querySelector('.icon')!.hasAttribute('hidden')).toBe(true);
+    expect(el.style.getPropertyValue('--fgb-icon-color')).toBe('#7df59a');
+  });
+
+  it('accepts a custom palette', () => {
+    const el = mount();
+    el.palette = { fire: [[0, 0, 0.3], [0, 0, 1], [0.2, 0.3, 1.5], [0.6, 0.8, 2], [2, 2, 3]], rim: [0.5, 0.5, 1], icon: '#8080ff' };
+    expect(el.palette?.icon).toBe('#8080ff');
+    expect(el.style.getPropertyValue('--fgb-icon-color')).toBe('#8080ff');
+    el.palette = null;
+    expect(el.palette).toBeNull();
+  });
+});

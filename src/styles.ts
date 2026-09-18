@@ -86,8 +86,47 @@ button:disabled {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.3em;
+  gap: 0.45em;
   width: 100%;
+}
+
+/* Built-in status icon: a line icon in the status colour with a soft glow. */
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.05em;
+  height: 1.05em;
+  margin-right: 0.15em;
+  color: var(--fgb-icon-color, currentColor);
+  filter: drop-shadow(0 0 0.18em color-mix(in srgb, var(--fgb-icon-color, currentColor) 70%, transparent));
+  transition: color 500ms ease;
+  flex: none;
+}
+
+.icon[hidden] {
+  display: none;
+}
+
+.icon svg,
+.icon ::slotted(*) {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Visually hidden status text for assistive tech. */
+.sr-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }
 
 /*

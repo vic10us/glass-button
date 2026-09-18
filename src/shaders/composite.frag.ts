@@ -43,6 +43,8 @@ uniform vec2 uFireExtent;  // half-extent of the fire buffer in pill units
 uniform sampler2D uFire;   // premultiplied HDR fire (see fire.frag)
 uniform sampler2D uBloom;  // blurred fire: bloom and illuminance
 uniform float uDecode;     // undoes the fire pass encode scale
+uniform vec3 uRimTint;     // status colour for edge light and side reflections
+uniform vec3 uEmberColor;  // hot ramp colour for embers
 
 #define P_FIRE_INTENSITY  uParams[0].x
 #define P_FIRE_HEIGHT     uParams[0].y
@@ -87,7 +89,7 @@ vec3 aces(vec3 x) {
 // +z points at the camera; +y is up. Directions are compared with a
 // gaussian in direction space, i.e. exp(-|R - L|^2 * k): small k = broad
 // soft light, large k = tight specular source.
-vec3 studio(vec3 R, vec2 pointer) {
+vec3 studio(vec3 R, vec2 pointer, vec3 rimTint) {
   // Backdrop behind the camera: near black, faintly cool.
   vec3 col = vec3(0.010, 0.012, 0.018);
   // Ceiling: broad cool light from above. Gives the upper face its sheen.
@@ -113,13 +115,13 @@ vec3 studio(vec3 R, vec2 pointer) {
   vec3 dr = R - sideR;
   float sl = exp(-dot(dl, dl) * 5.0);
   float sr = exp(-dot(dr, dr) * 5.0);
-  col += vec3(0.4, 0.65, 1.0) * (sl + sr) * 9.0;
+  col += rimTint * (sl + sr) * 9.0;
   return col;
 }
 
 // Embers: two grids of sparse rising sparks, drawn at full resolution so
 // they stay crisp. Coordinates are pill units; the grid scrolls upward.
-vec3 embers(vec2 pillPos, float fy, float t, float density) {
+vec3 embers(vec2 pillPos, float fy, float t, float density, vec3 color) {
   vec3 acc = vec3(0.0);
   for (int i = 0; i < 2; i++) {
     float fi = float(i);
@@ -138,7 +140,7 @@ vec3 embers(vec2 pillPos, float fy, float t, float density) {
     // Flicker and fade with height; sparks appear just above the fuel line.
     float life = smoothstep(0.05, 0.14, fy) * (1.0 - smoothstep(0.28, 0.62, fy + h.x * 0.2));
     float flicker = 0.55 + 0.45 * sin(t * (7.0 + h.w * 12.0) + h.x * 6.28);
-    acc += vec3(2.6, 1.15, 0.28) * dot_ * life * flicker;
+    acc += color * dot_ * life * flicker;
   }
   return acc;
 }
@@ -189,7 +191,7 @@ void main() {
     // ---- reflection of the studio ---------------------------------------
     float F = 0.04 + 0.96 * pow(1.0 - NdV, 5.0);   // Schlick Fresnel
     vec3 R = reflect(-V, N);
-    vec3 env = studio(R, uPointer);
+    vec3 env = studio(R, uPointer, uRimTint);
     vec3 reflection = env * F * P_REFLECTION * (1.0 + 0.2 * hover);
 
     // Edge light: light guided inside the slab leaves through the silhouette
@@ -197,7 +199,9 @@ void main() {
     // where the fire is close.
     float rim = pow(1.0 - NdV, 22.0);
     float upper = 0.25 + 0.75 * smoothstep(-0.4, 0.5, g.y);
-    reflection += vec3(0.8, 0.9, 1.0) * rim * upper * 3.0 * P_REFLECTION;
+    // Edge light is mostly the cool key light, tinted by the status colour.
+    vec3 edgeTint = mix(vec3(0.8, 0.9, 1.0), uRimTint, 0.45);
+    reflection += edgeTint * rim * upper * 3.0 * P_REFLECTION;
 
     // ---- fire seen through the curved front surface ---------------------
     // Refraction through the thick rounded edge. Horizontally the view bends
@@ -232,7 +236,7 @@ void main() {
                    * 0.05 * smoothstep(0.35, 1.0, fy) * P_REFLECTION;
 
     // ---- embers -----------------------------------------------------------
-    vec3 spark = embers(p, fy, t, P_EMBERS) * (1.0 + 0.3 * hover);
+    vec3 spark = embers(p, fy, t, P_EMBERS, uEmberColor) * (1.0 + 0.3 * hover);
 
     // ---- transmission ---------------------------------------------------
     vec3 body = vec3(0.010, 0.011, 0.014);

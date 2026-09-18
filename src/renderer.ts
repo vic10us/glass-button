@@ -34,6 +34,8 @@ export interface RenderFrame {
   pulse: number;
   pointerX: number;
   pointerY: number;
+  /** Flattened palette: 5 fire ramp colours then the rim tint (18 floats, see status.ts). */
+  palette: Float32Array;
 }
 
 /** Canvas and pill rectangle in device pixels; pill y is measured from the top. */
@@ -56,7 +58,7 @@ const BLOOM_SCALE = 0.5;
 /** Peak HDR value expected from the fire shader; used to encode into RGBA8 when floats are unavailable. */
 const HDR_RANGE = 6;
 
-const FIRE_UNIFORMS = ['uExtent', 'uHalfW', 'uTime', 'uHover', 'uPress', 'uPulse', 'uEncode', 'uParams'] as const;
+const FIRE_UNIFORMS = ['uExtent', 'uHalfW', 'uTime', 'uHover', 'uPress', 'uPulse', 'uEncode', 'uParams', 'uFireRamp'] as const;
 const BLUR_UNIFORMS = ['uSrc', 'uDir'] as const;
 const COMPOSITE_UNIFORMS = [
   'uRes',
@@ -72,6 +74,8 @@ const COMPOSITE_UNIFORMS = [
   'uFire',
   'uBloom',
   'uDecode',
+  'uRimTint',
+  'uEmberColor',
 ] as const;
 
 export class Renderer {
@@ -191,6 +195,7 @@ export class Renderer {
     gl.uniform1f(u.uPulse, frame.pulse);
     gl.uniform1f(u.uEncode, this.encode);
     gl.uniform4fv(u.uParams, this.paramBuf);
+    gl.uniform3fv(u.uFireRamp, frame.palette, 0, 15);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
 
     // --- 2. bloom: horizontal blur (also downsamples) then vertical ---
@@ -239,6 +244,9 @@ export class Renderer {
     gl.uniform2f(u.uPointer, frame.pointerX, frame.pointerY);
     gl.uniform4fv(u.uParams, this.paramBuf);
     gl.uniform1f(u.uDecode, 1 / this.encode);
+    gl.uniform3f(u.uRimTint, frame.palette[15], frame.palette[16], frame.palette[17]);
+    // Embers glow with the "hot" ramp stop.
+    gl.uniform3f(u.uEmberColor, frame.palette[9] * 1.1, frame.palette[10] * 1.1, frame.palette[11] * 1.1);
     gl.uniform1i(u.uFire, 0);
     gl.uniform1i(u.uBloom, 1);
     gl.activeTexture(gl.TEXTURE0);

@@ -44,6 +44,7 @@ uniform float uPress;
 uniform float uPulse;
 uniform float uEncode;  // 1.0 for float targets, <1 to fit HDR into 8 bits
 uniform vec4 uParams[3];
+uniform vec3 uFireRamp[5]; // temperature ramp: edge, low, mid, hot, core (linear HDR)
 
 #define P_FIRE_INTENSITY  uParams[0].x
 #define P_FIRE_HEIGHT     uParams[0].y
@@ -51,19 +52,14 @@ uniform vec4 uParams[3];
 
 ${NOISE_GLSL}
 
-// Temperature ramp in linear light. Values above 1 are intentional: the
-// composite pass tonemaps, and the bloom pass picks them up.
+// Temperature ramp in linear light, from the status palette. Values above 1
+// are intentional: the composite pass tonemaps, and the bloom pass picks
+// them up.
 vec3 fireColor(float heat) {
-  vec3 c = vec3(0.0);
-  vec3 deepRed = vec3(0.55, 0.015, 0.0);
-  vec3 red     = vec3(1.1, 0.10, 0.0);
-  vec3 orange  = vec3(1.6, 0.42, 0.02);
-  vec3 yellow  = vec3(2.4, 1.35, 0.25);
-  vec3 white   = vec3(3.6, 3.1, 2.2);
-  c = mix(deepRed, red, smoothstep(0.0, 0.2, heat));
-  c = mix(c, orange, smoothstep(0.2, 0.55, heat));
-  c = mix(c, yellow, smoothstep(0.6, 1.0, heat));
-  c = mix(c, white, smoothstep(1.1, 1.6, heat));
+  vec3 c = mix(uFireRamp[0], uFireRamp[1], smoothstep(0.0, 0.2, heat));
+  c = mix(c, uFireRamp[2], smoothstep(0.2, 0.55, heat));
+  c = mix(c, uFireRamp[3], smoothstep(0.6, 1.0, heat));
+  c = mix(c, uFireRamp[4], smoothstep(1.1, 1.6, heat));
   return c;
 }
 
