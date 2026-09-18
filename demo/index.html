@@ -6,14 +6,17 @@
 <title>fire-glass-button demo</title>
 <style>
   :root { color-scheme: dark; }
-  html, body { margin: 0; background: #0b0d12; color: #dfe6f3; font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Inter", system-ui, sans-serif; }
+  :root { --bg: #0b0d12; --fg: #dfe6f3; --muted: #8e9ab0; --code-fg: #c9d4e8; --code-bg: #141822; --border: #1d2230; --ui-bg: #161b26; }
+  :root[data-light] { --fg: #16181d; --muted: #4c5566; --code-fg: #1f2633; --code-bg: rgba(0,0,0,0.06); --border: rgba(0,0,0,0.14); --ui-bg: rgba(255,255,255,0.7); }
+  html, body { margin: 0; min-height: 100%; }
+  body { background: var(--bg); background-attachment: fixed; color: var(--fg); font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Inter", system-ui, sans-serif; transition: background 300ms ease, color 300ms ease; }
   main { max-width: 1100px; margin: 0 auto; padding: 32px 24px 160px; }
   h1 { font-weight: 500; letter-spacing: -0.01em; margin: 0 0 4px; }
-  h2 { font-weight: 500; font-size: 13px; color: #8e9ab0; text-transform: uppercase; letter-spacing: 0.08em; margin: 72px 0 16px; }
-  p { color: #9aa5ba; max-width: 64ch; }
+  h2 { font-weight: 500; font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin: 72px 0 16px; }
+  p { color: var(--muted); max-width: 64ch; }
   p.lede { margin: 0 0 40px; }
-  code { font: 13px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; color: #c9d4e8; background: #141822; padding: 1px 6px; border-radius: 6px; }
-  pre { font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; color: #c9d4e8; background: #10131b; border: 1px solid #1d2230; padding: 14px 16px; border-radius: 12px; overflow: auto; }
+  code { font: 13px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--code-fg); background: var(--code-bg); padding: 1px 6px; border-radius: 6px; }
+  pre { font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--code-fg); background: var(--code-bg); border: 1px solid var(--border); padding: 14px 16px; border-radius: 12px; overflow: auto; }
   section.stage { display: grid; place-items: center; padding: 96px 24px 150px; }
   .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 110px 40px; padding: 72px 24px 130px; justify-items: center; }
   .row { display: flex; flex-wrap: wrap; align-items: center; gap: 96px 48px; padding: 72px 24px 130px; }
@@ -21,12 +24,21 @@
   fire-glass-button.l { font-size: 40px; }
   fire-glass-button.m { font-size: 28px; }
   fire-glass-button.s { font-size: 20px; }
-  .mobile-frame { width: 390px; max-width: 100%; padding: 64px 20px 130px; box-sizing: border-box; border: 1px solid #1d2230; border-radius: 28px; }
+  .mobile-frame { width: 390px; max-width: 100%; padding: 64px 20px 130px; box-sizing: border-box; border: 1px solid var(--border); border-radius: 28px; }
   .mobile-frame fire-glass-button { width: 100%; font-size: 22px; }
   .controls { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; margin: 0 0 12px; }
-  .controls label { display: inline-flex; align-items: center; gap: 8px; color: #c9d4e8; cursor: pointer; }
-  button.ui { font: inherit; color: #dfe6f3; background: #161b26; border: 1px solid #262d3d; border-radius: 10px; padding: 8px 14px; cursor: pointer; }
-  button.ui:hover { background: #1c2230; }
+  .controls label { display: inline-flex; align-items: center; gap: 8px; color: var(--code-fg); cursor: pointer; }
+  button.ui { font: inherit; color: var(--fg); background: var(--ui-bg); border: 1px solid var(--border); border-radius: 10px; padding: 8px 14px; cursor: pointer; }
+  button.ui:hover { filter: brightness(1.15); }
+  /* Background switcher */
+  .bgbar { position: fixed; left: 16px; bottom: 16px; z-index: 10; display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: rgba(14, 17, 24, 0.85); color: #dfe6f3; border: 1px solid #262d3d; border-radius: 14px; backdrop-filter: blur(12px); font-size: 12px; }
+  .bgbar .title { color: #8e9ab0; margin-right: 4px; text-transform: uppercase; letter-spacing: 0.06em; font-size: 11px; }
+  .bgbar button.swatch { width: 26px; height: 26px; padding: 0; border-radius: 50%; border: 2px solid rgba(255,255,255,0.18); cursor: pointer; background-size: cover; background-position: center; }
+  .bgbar button.swatch:hover { border-color: rgba(255,255,255,0.5); }
+  .bgbar button.swatch[aria-pressed="true"] { border-color: #f28a2e; box-shadow: 0 0 0 2px rgba(242,138,46,0.35); }
+  .bgbar input[type="color"] { width: 26px; height: 26px; padding: 0; border: 2px solid rgba(255,255,255,0.18); border-radius: 50%; background: none; cursor: pointer; }
+  .bgbar input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+  .bgbar input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 50%; }
   .panel { position: fixed; right: 16px; top: 16px; width: 300px; max-height: calc(100vh - 32px); overflow: auto; background: rgba(14, 17, 24, 0.92); border: 1px solid #222838; border-radius: 14px; padding: 14px 16px 16px; backdrop-filter: blur(12px); font-size: 13px; z-index: 10; }
   .panel h3 { margin: 0 0 8px; font-size: 13px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: #8e9ab0; }
   .panel .stat { display: flex; justify-content: space-between; color: #c9d4e8; margin-bottom: 10px; }
@@ -127,6 +139,11 @@
 &lt;/script&gt;</pre>
 </main>
 
+<div class="bgbar" id="bgbar" role="group" aria-label="Page background">
+  <span class="title">Background</span>
+  <input type="color" id="bg-custom" value="#0b0d12" title="Custom colour" aria-label="Custom background colour" />
+</div>
+
 <button class="ui panel-toggle" id="panel-toggle">Tuning</button>
 <aside class="panel" id="panel">
   <h3>Renderer</h3>
@@ -146,6 +163,60 @@
   import { FireGlassButton } from '../dist/fire-glass-button.js';
 
   const all = () => Array.from(document.querySelectorAll('fire-glass-button'));
+
+  // ---- page background switcher ---------------------------------------
+  // `css` is the body background; `light` flips the prose colours.
+  const paper = "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.93 0 0 0 0 0.92 0 0 0 0 0.90 0 0 0 0.35 0.65'/></filter><rect width='200' height='200' filter='url(%23n)'/></svg>\")";
+  const BACKGROUNDS = {
+    black:    { css: '#050608', light: false },
+    charcoal: { css: '#0b0d12', light: false },
+    navy:     { css: '#0f1a33', light: false },
+    slate:    { css: '#2a3140', light: false },
+    grey:     { css: '#7a8290', light: true },
+    light:    { css: '#e6e9ef', light: true },
+    white:    { css: '#ffffff', light: true },
+    gradient: { css: 'linear-gradient(135deg, #0b1026 0%, #2a1240 55%, #4a1030 100%)', light: false },
+    mesh:     { css: 'radial-gradient(at 20% 15%, #1e3a8a 0, transparent 50%), radial-gradient(at 80% 20%, #7c3aed 0, transparent 50%), radial-gradient(at 60% 85%, #0ea5e9 0, transparent 55%), radial-gradient(at 15% 80%, #f43f5e 0, transparent 50%), #0b0d12', light: false },
+    paper:    { css: paper + ', #ece9e2', light: true },
+  };
+  const bgbar = document.getElementById('bgbar');
+  const bgCustom = document.getElementById('bg-custom');
+  function applyBackground(key, custom) {
+    const bg = custom ? { css: custom, light: isLightColour(custom) } : BACKGROUNDS[key];
+    if (!bg) return;
+    document.documentElement.style.setProperty('--bg', bg.css);
+    document.documentElement.toggleAttribute('data-light', bg.light);
+    for (const b of bgbar.querySelectorAll('button.swatch')) b.setAttribute('aria-pressed', String(b.dataset.bg === key && !custom));
+    try { localStorage.setItem('fgb-demo-bg', custom ? `custom:${custom}` : key); } catch {}
+    const url = new URL(location.href);
+    if (custom) url.searchParams.set('bg', custom); else url.searchParams.set('bg', key);
+    history.replaceState(null, '', url);
+  }
+  function isLightColour(hex) {
+    const n = parseInt(hex.slice(1), 16);
+    const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b > 140;
+  }
+  for (const [key, bg] of Object.entries(BACKGROUNDS)) {
+    const b = document.createElement('button');
+    b.className = 'swatch';
+    b.dataset.bg = key;
+    b.title = key;
+    b.setAttribute('aria-label', `${key} background`);
+    b.style.background = bg.css;
+    b.addEventListener('click', () => applyBackground(key));
+    bgbar.insertBefore(b, bgCustom);
+  }
+  bgCustom.addEventListener('input', () => applyBackground(null, bgCustom.value));
+  {
+    const fromUrl = new URL(location.href).searchParams.get('bg');
+    let saved = null;
+    try { saved = localStorage.getItem('fgb-demo-bg'); } catch {}
+    const initial = fromUrl ?? saved ?? 'charcoal';
+    if (initial.startsWith('#')) { bgCustom.value = initial; applyBackground(null, initial); }
+    else if (initial.startsWith('custom:')) { bgCustom.value = initial.slice(7); applyBackground(null, initial.slice(7)); }
+    else applyBackground(BACKGROUNDS[initial] ? initial : 'charcoal');
+  }
   const hero = document.getElementById('hero-button');
   const stateButton = document.getElementById('state-button');
 

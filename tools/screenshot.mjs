@@ -2,9 +2,11 @@
 /**
  * Headless screenshot tool for visual tuning.
  *
- *   node tools/screenshot.mjs [scene ...] [--wait=ms] [--out=dir]
+ *   node tools/screenshot.mjs [scene ...] [--wait=ms] [--out=dir] [--bg=key|#hex]
  *
- * Scenes: idle, hover, press, sizes, mobile, reduced, fallback, status, all (default: idle).
+ * Scenes: idle, hover, press, sizes, mobile, reduced, fallback, status,
+ * backgrounds, page (full page), all (default: idle). `backgrounds` renders the status row on
+ * every preset background; `--bg` sets the page background for other scenes.
  * Serves the package directory over HTTP (modules need a real origin), drives
  * Chromium with SwiftShader so WebGL2 works without a GPU, forwards console
  * output, and writes PNGs to shots/<scene>.png.
@@ -22,6 +24,8 @@ const flags = Object.fromEntries(args.filter((a) => a.startsWith('--')).map((a) 
 let scenes = args.filter((a) => !a.startsWith('--'));
 if (scenes.length === 0) scenes = ['idle'];
 if (scenes.includes('all')) scenes = ['idle', 'hover', 'press', 'sizes', 'mobile', 'reduced', 'fallback', 'status'];
+const BG_KEYS = ['black', 'charcoal', 'navy', 'slate', 'grey', 'light', 'white', 'gradient', 'mesh', 'paper'];
+if (scenes.includes('backgrounds')) scenes = scenes.filter((s) => s !== 'backgrounds').concat(BG_KEYS.map((k) => `bg-${k}`));
 const wait = Number(flags.wait ?? 1500);
 const outDir = resolve(root, flags.out ?? 'shots');
 const scale = Number(flags.scale ?? 2);
@@ -39,7 +43,7 @@ const server = createServer(async (req, res) => {
   }
 });
 await new Promise((r) => server.listen(0, '127.0.0.1', r));
-const base = `http://127.0.0.1:${server.address().port}/demo/index.html`;
+const origin = `http://127.0.0.1:${server.address().port}/demo/index.html`;
 
 async function launch() {
   const gpuArgs = ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--enable-webgl', '--no-sandbox'];
@@ -57,6 +61,8 @@ await mkdir(outDir, { recursive: true });
 
 for (const scene of scenes) {
   const mobile = scene === 'mobile';
+  const bgKey = scene.startsWith('bg-') ? scene.slice(3) : flags.bg;
+  const base = bgKey ? `${origin}?bg=${encodeURIComponent(bgKey)}` : origin;
   const context = await browser.newContext({
     viewport: mobile ? { width: 390, height: 844 } : { width: 1200, height: 900 },
     deviceScaleFactor: scale,
@@ -70,7 +76,7 @@ for (const scene of scenes) {
   await page.goto(base, { waitUntil: 'networkidle' });
   await page.waitForFunction(() => customElements.get('fire-glass-button') !== undefined);
   // The fixed tuning panel would paint over element screenshots.
-  await page.addStyleTag({ content: '.panel, .panel-toggle { display: none !important; }' });
+  await page.addStyleTag({ content: '.panel, .panel-toggle, .bgbar { display: none !important; }' });
 
   const renderer = await page.evaluate(() => document.querySelector('fire-glass-button')?.dataset.renderer);
   const hero = page.locator('#hero');
@@ -88,13 +94,16 @@ for (const scene of scenes) {
     target = page.locator('#mobile');
   } else if (scene === 'fallback') {
     target = page.locator('#fallback');
-  } else if (scene === 'status') {
+  } else if (scene === 'status' || scene.startsWith('bg-')) {
     target = page.locator('#statuses');
+  } else if (scene === 'page') {
+    target = null; // full page
   }
 
   await page.waitForTimeout(wait);
   const file = join(outDir, `${scene}.png`);
-  await target.screenshot({ path: file });
+  if (target) await target.screenshot({ path: file });
+  else await page.screenshot({ path: file, fullPage: true });
   console.log(`${scene}: renderer=${renderer} -> ${file}`);
   if (scene === 'press') await page.mouse.up();
   await context.close();

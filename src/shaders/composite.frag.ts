@@ -293,6 +293,12 @@ void main() {
   vec3 inCol = linearToSrgb(aces(inside));
   vec3 outCol = linearToSrgb(aces(outside));
   float outA = max(outCol.r, max(outCol.g, outCol.b));   // additive glow over the page
+  // Soft knee: sRGB encoding lifts near-zero glow to a few percent, which
+  // reads as a grey haze rectangle on light pages. Fade the faintest glow
+  // out entirely (and its colour with it, keeping premultiplication intact).
+  float knee = smoothstep(0.0, 0.14, outA);
+  outCol *= knee;
+  outA *= knee;
   vec3 rgb = inCol * mask + outCol * (1.0 - mask);
   float alpha = insideA * mask + outA * (1.0 - mask);
   fragColor = vec4(rgb, alpha);

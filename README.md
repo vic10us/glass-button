@@ -190,7 +190,15 @@ npm install
 npm test          # vitest + jsdom
 npm run build     # tsup -> dist/
 npm run shot -- all   # headless Chromium screenshots of demo scenes -> shots/
+npm run shot -- backgrounds        # the status row on every preset page background
+npm run shot -- idle --bg=white    # any scene on a preset key or #hex background
+npm run shot -- page --bg=paper    # full demo page
 ```
+
+The demo has a background switcher (bottom left) with dark, light, gradient,
+mesh and paper presets plus a custom colour, so you can judge the glass and
+glow against the pages it will live on. The choice persists and is
+addressable as `?bg=<key|#hex>`.
 
 `demo/index.html` (serve the package directory, e.g. `npx serve .`) shows
 the four status modes, idle, hover, pressed, sizes, mobile width, reduced
