@@ -47,21 +47,104 @@ glow extends beyond the pill, like a drop shadow, so leave room below it.
 
 ### React
 
+React 19 binds attributes, properties and custom events on custom elements
+directly:
+
 ```jsx
 import 'glass-button';
 
-export function Cta() {
-  return <glass-button level="1.1" onClick={go}>Take Action →</glass-button>;
+export function Health({ status, onChange }) {
+  return (
+    <glass-button status={status} effect="water" onStatuschange={(e) => onChange(e.detail.newStatus)}>
+      Server A
+    </glass-button>
+  );
 }
+```
+
+React 18 and earlier pass attributes as strings, which covers every parameter,
+`status`, `effect`, `icon` and `disabled`. Only the `statuschange` event needs
+a ref:
+
+```jsx
+import { useEffect, useRef } from 'react';
+import 'glass-button';
+
+export function Health({ status, onChange }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    const el = ref.current;
+    const handler = (e) => onChange(e.detail.newStatus);
+    el.addEventListener('statuschange', handler);
+    return () => el.removeEventListener('statuschange', handler);
+  }, [onChange]);
+  return <glass-button ref={ref} status={status}>Server A</glass-button>;
+}
+```
+
+### Vue 3
+
+Tell the compiler the tag is a custom element so it is not treated as a
+missing component, then bind as usual:
+
+```js
+// vite.config.js
+export default {
+  plugins: [vue({ template: { compilerOptions: { isCustomElement: (tag) => tag === 'glass-button' } } })],
+};
+```
+
+```vue
+<script setup>
+import 'glass-button';
+defineProps({ status: String });
+</script>
+
+<template>
+  <glass-button :status="status" effect="fire" @statuschange="$emit('change', $event.detail)">
+    Server A
+  </glass-button>
+</template>
 ```
 
 ### Angular
 
-Add `CUSTOM_ELEMENTS_SCHEMA` to the consuming module, then:
+Add `CUSTOM_ELEMENTS_SCHEMA` to the module or standalone component:
 
-```html
-<glass-button [attr.intensity]="intensity" (click)="go()">Take Action →</glass-button>
+```ts
+import { Component, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
+import 'glass-button';
+
+@Component({
+  selector: 'app-health',
+  standalone: true,
+  schemas: [CUSTOM_ELEMENTS_SCHEMA],
+  template: `<glass-button [attr.status]="status" (statuschange)="onChange($event)">Server A</glass-button>`,
+})
+export class HealthComponent { status = 'healthy'; onChange(e: Event) { /* (e as CustomEvent).detail */ } }
 ```
+
+### Svelte
+
+```svelte
+<script>
+  import 'glass-button';
+  export let status = 'healthy';
+</script>
+
+<glass-button {status} on:statuschange={(e) => (status = e.detail.newStatus)}>Server A</glass-button>
+```
+
+### Server-side rendering
+
+The module is safe to import on the server: nothing touches the DOM until an
+element is constructed, and registration is skipped when `customElements` is
+absent. Import it from code that also runs in the browser (a Next.js
+`'use client'` component, a Nuxt component, a SvelteKit page) so the client
+bundle registers the tag and upgrades the server-rendered markup in place.
+The server output is the plain tag with its light-DOM text, so the label is
+in the HTML before hydration. `defineGlassButton(tag)` is exported if you
+need to register under a different tag name.
 
 ## Status modes
 

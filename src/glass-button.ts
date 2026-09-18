@@ -44,8 +44,14 @@ const PALETTE_RATE = 5;
 /** Effect crossfade rate (1/s) when switching fire <-> water. */
 const EFFECT_RATE = 4;
 
-const TEMPLATE = document.createElement('template');
-TEMPLATE.innerHTML = `<style>${STYLES}</style>
+// The shadow template is built on first use, not at import time, so the
+// module can be imported on a server (Next.js, Nuxt, SvelteKit, Angular
+// Universal) where `document` does not exist.
+let template: HTMLTemplateElement | null = null;
+function getTemplate(): HTMLTemplateElement {
+  if (!template) {
+    template = document.createElement('template');
+    template.innerHTML = `<style>${STYLES}</style>
 <div class="frame">
   <canvas aria-hidden="true"></canvas>
   <button part="button" type="button">
@@ -53,12 +59,21 @@ TEMPLATE.innerHTML = `<style>${STYLES}</style>
     <span class="sr-status"></span>
   </button>
 </div>`;
+  }
+  return template;
+}
+
+// Without a DOM there is no HTMLElement to extend; a stand-in keeps the class
+// definable so the module (and its exports) load anywhere. The element is
+// only registered when `customElements` exists.
+const BaseElement: typeof HTMLElement =
+  typeof HTMLElement !== 'undefined' ? HTMLElement : (class {} as unknown as typeof HTMLElement);
 
 // eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
 export interface GlassButton extends Params {}
 
 // eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
-export class GlassButton extends HTMLElement {
+export class GlassButton extends BaseElement {
   static get observedAttributes(): string[] {
     return [...PARAM_ATTRS, 'disabled', 'status', 'icon', 'effect'];
   }
@@ -124,7 +139,7 @@ export class GlassButton extends HTMLElement {
   constructor() {
     super();
     const root = this.attachShadow({ mode: 'open' });
-    root.appendChild(TEMPLATE.content.cloneNode(true));
+    root.appendChild(getTemplate().content.cloneNode(true));
     this.#frame = root.querySelector('.frame')!;
     this.#canvas = root.querySelector('canvas')!;
     this.#button = root.querySelector('button')!;
@@ -555,9 +570,13 @@ export class GlassButton extends HTMLElement {
   }
 }
 
-if (!customElements.get('glass-button')) {
-  customElements.define('glass-button', GlassButton);
+/** Register the element under a tag name (default `glass-button`). Safe to call twice. */
+export function defineGlassButton(tag = 'glass-button'): void {
+  if (typeof customElements === 'undefined') return;
+  if (!customElements.get(tag)) customElements.define(tag, GlassButton);
 }
+
+defineGlassButton();
 
 declare global {
   interface HTMLElementTagNameMap {
