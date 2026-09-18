@@ -7,30 +7,65 @@
 <style>
   :root { color-scheme: dark; }
   html, body { margin: 0; background: #0b0d12; color: #dfe6f3; font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Inter", system-ui, sans-serif; }
-  main { max-width: 1100px; margin: 0 auto; padding: 32px 24px 120px; }
+  main { max-width: 1100px; margin: 0 auto; padding: 32px 24px 160px; }
   h1 { font-weight: 500; letter-spacing: -0.01em; margin: 0 0 4px; }
-  h2 { font-weight: 500; font-size: 15px; color: #8e9ab0; text-transform: uppercase; letter-spacing: 0.08em; margin: 64px 0 20px; }
-  p.lede { color: #8e9ab0; margin: 0 0 40px; }
-  section.stage { display: grid; place-items: center; padding: 96px 24px 140px; background: #0b0d12; border-radius: 20px; }
-  .row { display: flex; flex-wrap: wrap; align-items: center; gap: 72px 48px; padding: 72px 24px 120px; }
+  h2 { font-weight: 500; font-size: 13px; color: #8e9ab0; text-transform: uppercase; letter-spacing: 0.08em; margin: 72px 0 16px; }
+  p { color: #9aa5ba; max-width: 64ch; }
+  p.lede { margin: 0 0 40px; }
+  code { font: 13px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; color: #c9d4e8; background: #141822; padding: 1px 6px; border-radius: 6px; }
+  pre { font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; color: #c9d4e8; background: #10131b; border: 1px solid #1d2230; padding: 14px 16px; border-radius: 12px; overflow: auto; }
+  section.stage { display: grid; place-items: center; padding: 96px 24px 150px; }
+  .row { display: flex; flex-wrap: wrap; align-items: center; gap: 96px 48px; padding: 72px 24px 130px; }
   fire-glass-button { font-size: 56px; }
   fire-glass-button.l { font-size: 40px; }
   fire-glass-button.m { font-size: 28px; }
   fire-glass-button.s { font-size: 20px; }
-  .mobile-frame { width: 390px; max-width: 100%; padding: 64px 20px 120px; box-sizing: border-box; border: 1px solid #1d2230; border-radius: 28px; }
+  .mobile-frame { width: 390px; max-width: 100%; padding: 64px 20px 130px; box-sizing: border-box; border: 1px solid #1d2230; border-radius: 28px; }
   .mobile-frame fire-glass-button { width: 100%; font-size: 22px; }
+  .controls { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; margin: 0 0 12px; }
+  .controls label { display: inline-flex; align-items: center; gap: 8px; color: #c9d4e8; cursor: pointer; }
+  button.ui { font: inherit; color: #dfe6f3; background: #161b26; border: 1px solid #262d3d; border-radius: 10px; padding: 8px 14px; cursor: pointer; }
+  button.ui:hover { background: #1c2230; }
+  .panel { position: fixed; right: 16px; top: 16px; width: 300px; max-height: calc(100vh - 32px); overflow: auto; background: rgba(14, 17, 24, 0.92); border: 1px solid #222838; border-radius: 14px; padding: 14px 16px 16px; backdrop-filter: blur(12px); font-size: 13px; z-index: 10; }
+  .panel h3 { margin: 0 0 8px; font-size: 13px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: #8e9ab0; }
+  .panel .stat { display: flex; justify-content: space-between; color: #c9d4e8; margin-bottom: 10px; }
+  .panel .param { display: grid; grid-template-columns: 1fr 44px; gap: 2px 8px; align-items: center; margin: 8px 0; }
+  .panel .param span.name { color: #c9d4e8; }
+  .panel .param span.val { text-align: right; color: #8e9ab0; font-variant-numeric: tabular-nums; }
+  .panel .param input { grid-column: 1 / -1; width: 100%; accent-color: #f28a2e; }
+  .panel .actions { display: flex; gap: 8px; margin-top: 12px; }
+  .panel .actions button { flex: 1; }
+  .panel pre { margin: 10px 0 0; padding: 10px 12px; font-size: 11px; white-space: pre-wrap; }
+  .panel-toggle { position: fixed; right: 16px; top: 16px; z-index: 11; display: none; }
+  @media (max-width: 900px) {
+    .panel { display: none; }
+    .panel-toggle { display: block; }
+    .panel.open { display: block; top: 64px; }
+  }
 </style>
 </head>
 <body>
 <main>
   <h1>fire-glass-button</h1>
-  <p class="lede">Photorealistic glass pill with procedural fire, rendered in WebGL2.</p>
+  <p class="lede">A real <code>&lt;button&gt;</code> under a WebGL2 render of thick glass with procedural fire inside. Hover, press, tab to it. Everything below is the same component at different sizes and settings.</p>
 
   <section id="hero" class="stage">
     <fire-glass-button id="hero-button">Take Action →</fire-glass-button>
   </section>
 
+  <h2>States</h2>
+  <p>Idle burns low. Hovering raises the flames, the lower glass illumination and the rim brightness over a few hundred milliseconds. Moving the pointer slides the key light across the glass. Pressing compresses the pill slightly and pulses the fire, then relaxes with no bounce.</p>
+  <div class="controls">
+    <label><input type="checkbox" id="hold-pressed" /> Hold pressed state</label>
+    <label><input type="checkbox" id="force-hover" /> Force hover (for screenshots)</label>
+    <label><input type="checkbox" id="disabled" /> Disabled</label>
+  </div>
+  <section id="states" class="stage">
+    <fire-glass-button id="state-button">Take Action →</fire-glass-button>
+  </section>
+
   <h2>Sizes</h2>
+  <p>The shader works in units of pill height, so rims, refraction and flame scale stay proportional. The fire buffer keeps a fixed texel density per pill height instead of stretching.</p>
   <section id="sizes" class="row">
     <fire-glass-button class="l">Take Action →</fire-glass-button>
     <fire-glass-button class="m">Take Action →</fire-glass-button>
@@ -38,10 +73,155 @@
   </section>
 
   <h2>Mobile width</h2>
+  <p>An explicit width on the host stretches the pill; the fire still scales with the height.</p>
   <section id="mobile" class="mobile-frame">
     <fire-glass-button>Take Action →</fire-glass-button>
   </section>
+
+  <h2>Reduced motion</h2>
+  <p>With <code>prefers-reduced-motion: reduce</code> the fire is frozen in place and the renderer only draws while a hover or press state is easing. The design stays intact. The toggle below forces it via the <code>reducedMotion</code> property.</p>
+  <div class="controls">
+    <label><input type="checkbox" id="reduced" /> Force reduced motion on this button</label>
+  </div>
+  <section id="reduced-stage" class="stage">
+    <fire-glass-button id="reduced-button" class="l">Take Action →</fire-glass-button>
+  </section>
+
+  <h2>CSS fallback</h2>
+  <p>When WebGL2 is unavailable the element sets <code>data-renderer="css"</code> and the shadow stylesheet paints a simplified glass and glow. Setting that attribute yourself forces the fallback, as here.</p>
+  <section id="fallback" class="stage">
+    <fire-glass-button class="l" data-renderer="css">Take Action →</fire-glass-button>
+  </section>
+
+  <h2>Usage</h2>
+<pre>&lt;script type="module" src="fire-glass-button.js"&gt;&lt;/script&gt;
+
+&lt;fire-glass-button fire-height="1.2" bloom-strength="0.8"&gt;
+  Take Action →
+&lt;/fire-glass-button&gt;
+
+&lt;script type="module"&gt;
+  const el = document.querySelector('fire-glass-button');
+  el.addEventListener('click', () =&gt; console.log('clicked'));
+  el.fireIntensity = 1.3;                 // property ↔ attribute
+  el.params = { turbulence: 1.4 };        // merge several at once
+&lt;/script&gt;</pre>
 </main>
-<script type="module" src="../dist/fire-glass-button.js"></script>
+
+<button class="ui panel-toggle" id="panel-toggle">Tuning</button>
+<aside class="panel" id="panel">
+  <h3>Renderer</h3>
+  <div class="stat"><span>Backend</span><span id="stat-renderer">…</span></div>
+  <div class="stat"><span>Frame rate</span><span id="stat-fps">…</span></div>
+  <div class="stat"><span>Device pixel ratio</span><span id="stat-dpr">…</span></div>
+  <h3>Parameters</h3>
+  <div id="params"></div>
+  <div class="actions">
+    <button class="ui" id="reset">Reset</button>
+    <button class="ui" id="copy">Copy attributes</button>
+  </div>
+  <pre id="attrs"></pre>
+</aside>
+
+<script type="module">
+  import { FireGlassButton } from '../dist/fire-glass-button.js';
+
+  const all = () => Array.from(document.querySelectorAll('fire-glass-button'));
+  const hero = document.getElementById('hero-button');
+  const stateButton = document.getElementById('state-button');
+
+  // ---- state toggles ---------------------------------------------------
+  document.getElementById('hold-pressed').addEventListener('change', (e) => {
+    stateButton.toggleAttribute('data-pressed', e.target.checked);
+    stateButton.shadowRoot.querySelector('button').dispatchEvent(
+      new MouseEvent(e.target.checked ? 'pointerdown' : 'pointerup', { bubbles: true, button: 0 }),
+    );
+  });
+  document.getElementById('force-hover').addEventListener('change', (e) => {
+    const b = stateButton.shadowRoot.querySelector('button');
+    const r = b.getBoundingClientRect();
+    b.dispatchEvent(new MouseEvent(e.target.checked ? 'pointerenter' : 'pointerleave', {
+      bubbles: true, clientX: r.left + r.width * 0.3, clientY: r.top + r.height * 0.4,
+    }));
+  });
+  document.getElementById('disabled').addEventListener('change', (e) => {
+    stateButton.disabled = e.target.checked;
+  });
+  document.getElementById('reduced').addEventListener('change', (e) => {
+    document.getElementById('reduced-button').reducedMotion = e.target.checked ? true : 'auto';
+  });
+
+  // ---- tuning panel ------------------------------------------------------
+  const defaults = FireGlassButton.defaults;
+  const attrOf = {
+    fireIntensity: 'fire-intensity', fireHeight: 'fire-height', turbulence: 'turbulence', fireSpeed: 'fire-speed',
+    glassOpacity: 'glass-opacity', glassThickness: 'glass-thickness', refractionStrength: 'refraction-strength',
+    bloomStrength: 'bloom-strength', reflectionStrength: 'reflection-strength', emberDensity: 'ember-density',
+    heatDistortion: 'heat-distortion',
+  };
+  const ranges = {
+    fireIntensity: [0, 3], fireHeight: [0, 2.5], turbulence: [0, 3], fireSpeed: [0, 4], glassOpacity: [0, 1],
+    glassThickness: [0.2, 3], refractionStrength: [0, 3], bloomStrength: [0, 3], reflectionStrength: [0, 3],
+    emberDensity: [0, 4], heatDistortion: [0, 3],
+  };
+  const paramsRoot = document.getElementById('params');
+  const attrsOut = document.getElementById('attrs');
+  const inputs = {};
+
+  function currentAttrs() {
+    return Object.keys(defaults)
+      .filter((k) => Math.abs(hero[k] - defaults[k]) > 1e-9)
+      .map((k) => `${attrOf[k]}="${hero[k]}"`)
+      .join(' ');
+  }
+  function refreshAttrs() {
+    attrsOut.textContent = currentAttrs() || '(all defaults)';
+  }
+  function apply(name, value) {
+    for (const el of all()) el[name] = value;
+    inputs[name].value.textContent = Number(value).toFixed(2);
+    refreshAttrs();
+  }
+  for (const name of Object.keys(defaults)) {
+    const [min, max] = ranges[name];
+    const wrap = document.createElement('div');
+    wrap.className = 'param';
+    const label = document.createElement('span'); label.className = 'name'; label.textContent = attrOf[name];
+    const val = document.createElement('span'); val.className = 'val'; val.textContent = defaults[name].toFixed(2);
+    const input = document.createElement('input');
+    input.type = 'range'; input.min = min; input.max = max; input.step = 0.01; input.value = defaults[name];
+    input.setAttribute('aria-label', attrOf[name]);
+    input.addEventListener('input', () => apply(name, Number(input.value)));
+    wrap.append(label, val, input);
+    paramsRoot.append(wrap);
+    inputs[name] = { input, value: val };
+  }
+  document.getElementById('reset').addEventListener('click', () => {
+    for (const name of Object.keys(defaults)) {
+      inputs[name].input.value = defaults[name];
+      apply(name, defaults[name]);
+    }
+  });
+  document.getElementById('copy').addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(currentAttrs()); } catch { /* clipboard may be unavailable */ }
+  });
+  document.getElementById('panel-toggle').addEventListener('click', () => {
+    document.getElementById('panel').classList.toggle('open');
+  });
+  refreshAttrs();
+
+  // ---- stats -----------------------------------------------------------
+  document.getElementById('stat-renderer').textContent = hero.renderer;
+  document.getElementById('stat-dpr').textContent = Math.min(2, window.devicePixelRatio || 1).toFixed(2);
+  const fpsOut = document.getElementById('stat-fps');
+  let last = performance.now(), ema = 0, frames = 0;
+  function tick(now) {
+    const dt = now - last; last = now;
+    ema = ema ? ema * 0.9 + dt * 0.1 : dt;
+    if (++frames % 15 === 0) fpsOut.textContent = `${(1000 / ema).toFixed(0)} fps · ${ema.toFixed(1)} ms`;
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+</script>
 </body>
 </html>

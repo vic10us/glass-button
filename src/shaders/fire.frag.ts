@@ -120,7 +120,7 @@ void main() {
   density *= 1.0 - smoothstep(-0.04, 0.03, dPill);
   density *= 1.0 - smoothstep(1.15, 1.6, h);
 
-  float intensity = P_FIRE_INTENSITY * (1.0 + 0.22 * hover + 0.18 * press + 0.30 * uPulse);
+  float intensity = P_FIRE_INTENSITY * (1.0 + 0.22 * hover + 0.12 * press + 0.25 * uPulse);
   float heat = max(density, 0.0) * intensity;
 
   // ---- 4. colour ----------------------------------------------------------
