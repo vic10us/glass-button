@@ -1,6 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { FireGlassButton } from '../src/fire-glass-button';
 
+// jsdom has no PointerEvent; the element only reads MouseEvent fields.
+function pointer(type: string, init: MouseEventInit = {}): MouseEvent {
+  return new MouseEvent(type, { bubbles: true, ...init });
+}
+
 function mount(html = 'Take Action →'): FireGlassButton {
   const el = document.createElement('fire-glass-button') as FireGlassButton;
   el.innerHTML = html;
@@ -104,5 +109,86 @@ describe('accessibility', () => {
     el.addEventListener('click', onClick);
     el.shadowRoot!.querySelector('button')!.click();
     expect(onClick).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('interaction', () => {
+  it('marks the host pressed while the pointer is down and clears it on release', () => {
+    const el = mount();
+    const button = el.shadowRoot!.querySelector('button')!;
+    button.dispatchEvent(pointer('pointerdown', { button: 0 }));
+    expect(el.hasAttribute('data-pressed')).toBe(true);
+    button.dispatchEvent(pointer('pointerup'));
+    expect(el.hasAttribute('data-pressed')).toBe(false);
+  });
+
+  it('treats Space and Enter as a press while held', () => {
+    const el = mount();
+    const button = el.shadowRoot!.querySelector('button')!;
+    button.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
+    expect(el.hasAttribute('data-pressed')).toBe(true);
+    button.dispatchEvent(new KeyboardEvent('keyup', { key: ' ', bubbles: true }));
+    expect(el.hasAttribute('data-pressed')).toBe(false);
+    button.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    expect(el.hasAttribute('data-pressed')).toBe(true);
+    button.dispatchEvent(new FocusEvent('blur'));
+    expect(el.hasAttribute('data-pressed')).toBe(false);
+  });
+
+  it('ignores presses while disabled', () => {
+    const el = mount();
+    el.disabled = true;
+    const button = el.shadowRoot!.querySelector('button')!;
+    button.dispatchEvent(pointer('pointerdown', { button: 0 }));
+    expect(el.hasAttribute('data-pressed')).toBe(false);
+  });
+
+  it('drops the pressed state when disabled mid-press', () => {
+    const el = mount();
+    const button = el.shadowRoot!.querySelector('button')!;
+    button.dispatchEvent(pointer('pointerdown', { button: 0 }));
+    el.disabled = true;
+    expect(el.hasAttribute('data-pressed')).toBe(false);
+  });
+});
+
+describe('reduced motion', () => {
+  it('follows prefers-reduced-motion by default and can be overridden', () => {
+    const original = window.matchMedia;
+    window.matchMedia = ((q: string) =>
+      ({
+        matches: q.includes('reduce'),
+        media: q,
+        addEventListener() {},
+        removeEventListener() {},
+      }) as unknown as MediaQueryList) as typeof window.matchMedia;
+    try {
+      const el = mount();
+      expect(el.dataset.motion).toBe('reduced');
+      el.reducedMotion = false;
+      expect(el.dataset.motion).toBe('full');
+      el.reducedMotion = 'auto';
+      expect(el.dataset.motion).toBe('reduced');
+    } finally {
+      window.matchMedia = original;
+    }
+  });
+
+  it('reports full motion when the query does not match', () => {
+    const el = mount();
+    expect(el.dataset.motion).toBe('full');
+    el.reducedMotion = true;
+    expect(el.dataset.motion).toBe('reduced');
+  });
+});
+
+describe('lifecycle', () => {
+  it('stops listening for visibility changes after disconnect', () => {
+    const add = vi.spyOn(document, 'addEventListener');
+    const remove = vi.spyOn(document, 'removeEventListener');
+    const el = mount();
+    expect(add).toHaveBeenCalledWith('visibilitychange', expect.any(Function));
+    el.remove();
+    expect(remove).toHaveBeenCalledWith('visibilitychange', expect.any(Function));
   });
 });
