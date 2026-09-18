@@ -42,13 +42,13 @@ uniform float uPulse;
 uniform float uEncode;  // 1.0 for float targets, <1 to fit HDR into 8 bits
 uniform float uFade;    // crossfade weight for this effect
 uniform vec4 uParams[3];
-uniform vec3 uFireRamp[5]; // palette ramp: deep, mid, light, bright, highlight
+uniform vec3 uRamp[5]; // palette ramp: deep, mid, light, bright, highlight
 
 #define P_INTENSITY   uParams[0].x
-#define P_LEVEL       uParams[0].y   // fireHeight -> water level
+#define P_LEVEL       uParams[0].y   // level -> water level
 #define P_WAVES       uParams[0].z   // turbulence -> wave amplitude
-#define P_BUBBLES     uParams[2].y   // emberDensity -> bubbles
-#define P_SHIMMER     uParams[2].z   // heatDistortion -> ripple detail
+#define P_BUBBLES     uParams[2].y   // particles -> bubbles
+#define P_SHIMMER     uParams[2].z   // shimmer -> ripple detail
 
 ${NOISE_GLSL}
 
@@ -101,7 +101,7 @@ void main() {
   float dPill = length(pq) - 0.5;
   float pillMask = (1.0 - smoothstep(-0.04, 0.03, dPill)) * smoothstep(-0.14, -0.07, fy);
 
-  vec3 deep = uFireRamp[0], mid = uFireRamp[1], light = uFireRamp[2], bright = uFireRamp[3], hi = uFireRamp[4];
+  vec3 deep = uRamp[0], mid = uRamp[1], light = uRamp[2], bright = uRamp[3], hi = uRamp[4];
 
   // ---- 2. body colour by depth --------------------------------------------
   float dn = clamp(depth / max(h, 1e-3), 0.0, 1.0);   // 0 at surface, 1 at bottom

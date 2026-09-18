@@ -1,11 +1,12 @@
-# fire-glass-button
+# glass-button
 
-A framework-agnostic `<fire-glass-button>` custom element: a thick, dark,
-translucent glass pill with procedural fire burning inside its lower third,
-rendered in real time with WebGL2. The fire lights the glass (warm lower rim,
-light bleeding into the body, refraction through the curved edges), throws a
-soft reflection on the floor beneath, and responds to hover, pointer position
-and press. Underneath it is a plain `<button>` with slotted HTML text, so it
+A framework-agnostic `<glass-button>` custom element: a thick, dark,
+translucent glass pill with a procedural effect living inside its lower
+third, fire or water, rendered in real time with WebGL2. The effect lights
+the glass (coloured lower rim, light bleeding into the body, refraction
+through the curved edges), throws a soft reflection on the floor beneath, and
+responds to hover, pointer position and press. Four status modes recolour it
+and add an icon. Underneath it is a plain `<button>` with slotted HTML text, so it
 stays sharp, focusable and accessible.
 
 Zero runtime dependencies. Ships as ESM and as a plain `<script>` IIFE.
@@ -13,7 +14,7 @@ Zero runtime dependencies. Ships as ESM and as a plain `<script>` IIFE.
 ## Install
 
 ```bash
-npm install fire-glass-button
+npm install glass-button
 ```
 
 ## Usage
@@ -21,23 +22,23 @@ npm install fire-glass-button
 ### Vanilla HTML/JS
 
 ```html
-<script type="module" src="node_modules/fire-glass-button/dist/fire-glass-button.js"></script>
+<script type="module" src="node_modules/glass-button/dist/glass-button.js"></script>
 
-<fire-glass-button>Take Action →</fire-glass-button>
+<glass-button>Take Action →</glass-button>
 
 <script type="module">
-  const el = document.querySelector('fire-glass-button');
+  const el = document.querySelector('glass-button');
   el.addEventListener('click', () => console.log('clicked'));
-  el.fireHeight = 1.2;                 // property, reflected to fire-height="1.2"
-  el.params = { bloomStrength: 0.8 };  // merge several parameters at once
+  el.level = 1.2;                 // property, reflected to level="1.2"
+  el.params = { bloom: 0.8 };  // merge several parameters at once
 </script>
 ```
 
 Or via the global build:
 
 ```html
-<script src="node_modules/fire-glass-button/dist/fire-glass-button.global.js"></script>
-<fire-glass-button>Take Action →</fire-glass-button>
+<script src="node_modules/glass-button/dist/glass-button.global.js"></script>
+<glass-button>Take Action →</glass-button>
 ```
 
 Size it with `font-size` (padding is in `em`), or give the host an explicit
@@ -47,10 +48,10 @@ glow extends beyond the pill, like a drop shadow, so leave room below it.
 ### React
 
 ```jsx
-import 'fire-glass-button';
+import 'glass-button';
 
 export function Cta() {
-  return <fire-glass-button fire-height="1.1" onClick={go}>Take Action →</fire-glass-button>;
+  return <glass-button level="1.1" onClick={go}>Take Action →</glass-button>;
 }
 ```
 
@@ -59,7 +60,7 @@ export function Cta() {
 Add `CUSTOM_ELEMENTS_SCHEMA` to the consuming module, then:
 
 ```html
-<fire-glass-button [attr.fire-intensity]="intensity" (click)="go()">Take Action →</fire-glass-button>
+<glass-button [attr.intensity]="intensity" (click)="go()">Take Action →</glass-button>
 ```
 
 ## Status modes
@@ -72,12 +73,12 @@ a status the button keeps the default orange fire and shows no icon.
 Changing the status crossfades the palette over about half a second.
 
 ```html
-<fire-glass-button status="healthy">Healthy</fire-glass-button>
-<fire-glass-button status="trouble" icon="none">Trouble</fire-glass-button>
-<fire-glass-button status="warning">
+<glass-button status="healthy">Healthy</glass-button>
+<glass-button status="trouble" icon="none">Trouble</glass-button>
+<glass-button status="warning">
   <svg slot="icon" viewBox="0 0 24 24">…</svg>
   Warning
-</fire-glass-button>
+</glass-button>
 ```
 
 - `status` property mirrors the attribute; `null` clears it. Invalid values
@@ -85,10 +86,10 @@ Changing the status crossfades the palette over about half a second.
 - `statuschange`: `CustomEvent<{ oldStatus, newStatus }>` after a change.
 - `icon="none"` hides the built-in icon; an element with `slot="icon"`
   replaces it. `::part(icon)` styles the icon wrapper, and
-  `--fgb-icon-color` is set from the palette (override it if you like).
+  `--gb-icon-color` is set from the palette (override it if you like).
 - A visually hidden "Status: healthy" span inside the button announces the
   state to assistive technology whatever the visible label says.
-- `palette` property: supply `{ fire: [edge, low, mid, hot, core], rim, icon }`
+- `palette` property: supply `{ ramp: [edge, low, mid, hot, core], rim, icon }`
   with linear-light RGB triples (HDR values above 1 are fine) and a CSS icon
   colour to override the status palette; set `null` to clear. The presets
   are exported as `STATUS_PRESETS` and `DEFAULT_PALETTE`.
@@ -102,15 +103,15 @@ faint mist. Hover raises the waves, pressing sends a ripple across, and a
 click splashes. Switching effects crossfades over about half a second.
 
 ```html
-<fire-glass-button effect="water">Dive In →</fire-glass-button>
-<fire-glass-button effect="water" status="healthy">Healthy</fire-glass-button>
+<glass-button effect="water">Dive In →</glass-button>
+<glass-button effect="water" status="healthy">Healthy</glass-button>
 ```
 
 Status palettes tint water the same way they tint fire; without a status,
-water uses an aqua palette (`WATER_PALETTE`). The parameters keep their names
-but map naturally: `fire-height` is the water level, `turbulence` the wave
-amplitude, `fire-speed` the flow speed, `ember-density` the bubble count,
-`heat-distortion` the ripple detail. Effective values layer defaults, then
+water uses an aqua palette (`WATER_PALETTE`). Parameters are generic: `level`
+is flame height or water level, `turbulence` the curl or wave amplitude,
+`speed` the flow, `particles` embers or bubbles, `shimmer` heat haze or
+ripple detail. Effective values layer defaults, then
 the effect preset, then the status preset, then explicit attributes.
 
 ## API
@@ -125,20 +126,20 @@ below.
 
 | Attribute | Property | Default | Range | Effect |
 |---|---|---|---|---|
-| `fire-intensity` | `fireIntensity` | 1.0 | 0–3 | Fire brightness and density |
-| `fire-height` | `fireHeight` | 1.0 | 0–2.5 | How far flames reach up the pill |
-| `turbulence` | `turbulence` | 1.0 | 0–3 | Domain-warp strength, the curl of the tongues |
-| `fire-speed` | `fireSpeed` | 1.0 | 0–4 | Time scale of the fire |
+| `intensity` | `intensity` | 1.0 | 0–3 | Effect brightness and density |
+| `level` | `level` | 1.0 | 0–2.5 | Flame height or water level |
+| `turbulence` | `turbulence` | 1.0 | 0–3 | Curl of the flames or wave amplitude |
+| `speed` | `speed` | 1.0 | 0–4 | Time scale of the effect |
 | `glass-opacity` | `glassOpacity` | 0.82 | 0–1 | Darkness of the glass body over the page |
 | `glass-thickness` | `glassThickness` | 1.0 | 0.2–3 | Curvature and width of the rounded edge zone |
-| `refraction-strength` | `refractionStrength` | 1.0 | 0–3 | Fire distortion through the curved edge |
-| `bloom-strength` | `bloomStrength` | 1.0 | 0–3 | Bloom, light leak and floor glow |
-| `reflection-strength` | `reflectionStrength` | 1.0 | 0–3 | Fresnel and environment reflection |
-| `ember-density` | `emberDensity` | 1.0 | 0–4 | Number of rising embers |
-| `heat-distortion` | `heatDistortion` | 1.0 | 0–3 | Heat shimmer amplitude |
+| `refraction` | `refraction` | 1.0 | 0–3 | Distortion of the effect through the curved edge |
+| `bloom` | `bloom` | 1.0 | 0–3 | Bloom, light leak and floor glow |
+| `reflection` | `reflection` | 1.0 | 0–3 | Fresnel and environment reflection |
+| `particles` | `particles` | 1.0 | 0–4 | Embers or bubbles |
+| `shimmer` | `shimmer` | 1.0 | 0–3 | Heat haze or ripple detail |
 
 - `params` (get/set): all parameters as a plain object; setting merges keys.
-- `FireGlassButton.defaults`: a copy of the default parameter set.
+- `GlassButton.defaults`: a copy of the default parameter set.
 - `renderer` (read-only): `"webgl2"` or `"css"`.
 - `reducedMotion`: `'auto'` (default, follows `prefers-reduced-motion`),
   `true` or `false`.
@@ -154,10 +155,10 @@ below.
 
 | Property | Default |
 |---|---|
-| `--fgb-text-color` | `#f4f7ff` |
-| `--fgb-font` | system sans-serif stack |
-| `--fgb-padding` | `0.95em 2.4em` |
-| `--fgb-focus-ring` | `rgba(200, 225, 255, 0.9)` |
+| `--gb-text-color` | `#f4f7ff` |
+| `--gb-font` | system sans-serif stack |
+| `--gb-padding` | `0.95em 2.4em` |
+| `--gb-focus-ring` | `rgba(200, 225, 255, 0.9)` |
 
 `::part(button)` exposes the inner button for further styling.
 

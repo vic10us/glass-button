@@ -7,18 +7,18 @@ import { defineConfig } from 'tsup';
 // config's output.
 export default defineConfig([
   {
-    entry: { 'fire-glass-button': 'src/fire-glass-button.ts' },
+    entry: { 'glass-button': 'src/glass-button.ts' },
     format: ['esm'],
     dts: true,
-    clean: ['!fire-glass-button.global.js'],
+    clean: ['!glass-button.global.js'],
     outExtension() {
       return { js: '.js' };
     },
   },
   {
-    entry: { 'fire-glass-button': 'src/fire-glass-button.ts' },
+    entry: { 'glass-button': 'src/glass-button.ts' },
     format: ['iife'],
-    globalName: 'FireGlassButtonModule',
+    globalName: 'GlassButtonModule',
     minify: true,
     outExtension() {
       return { js: '.global.js' };

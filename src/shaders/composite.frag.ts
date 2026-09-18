@@ -46,17 +46,17 @@ uniform float uDecode;     // undoes the fire pass encode scale
 uniform vec3 uRimTint;     // status colour for edge light and side reflections
 uniform vec3 uEmberColor;  // hot ramp colour for embers
 
-#define P_FIRE_INTENSITY  uParams[0].x
-#define P_FIRE_HEIGHT     uParams[0].y
+#define P_INTENSITY  uParams[0].x
+#define P_LEVEL     uParams[0].y
 #define P_TURBULENCE      uParams[0].z
-#define P_FIRE_SPEED      uParams[0].w
+#define P_SPEED      uParams[0].w
 #define P_GLASS_OPACITY   uParams[1].x
 #define P_GLASS_THICKNESS uParams[1].y
 #define P_REFRACTION      uParams[1].z
 #define P_BLOOM           uParams[1].w
 #define P_REFLECTION      uParams[2].x
-#define P_EMBERS          uParams[2].y
-#define P_HEAT            uParams[2].z
+#define P_PARTICLES          uParams[2].y
+#define P_SHIMMER            uParams[2].z
 
 ${NOISE_GLSL}
 
@@ -210,7 +210,7 @@ void main() {
     // buffer extends below the pill for this). Offsets are in pill units.
     vec2 refr = vec2(-N.x, 0.55 * N.y) * 0.11 * P_REFRACTION * P_GLASS_THICKNESS;
     // Heat shimmer: hot air above the flames wobbles the view slightly.
-    float shimAmt = 0.006 * P_HEAT * smoothstep(0.15, 0.45, fy) * (1.0 - smoothstep(0.6, 1.0, fy));
+    float shimAmt = 0.006 * P_SHIMMER * smoothstep(0.15, 0.45, fy) * (1.0 - smoothstep(0.6, 1.0, fy));
     vec2 shim = vec2(snoise(vec3(p * 14.0, t * 2.6)), snoise(vec3(p * 14.0 + 31.0, t * 2.2))) * shimAmt;
     vec2 baseUv = fireUv + (shim + refr) * fireUvScale;
     // Chromatic aberration: red and blue refract slightly differently.
@@ -236,7 +236,7 @@ void main() {
                    * 0.05 * smoothstep(0.35, 1.0, fy) * P_REFLECTION;
 
     // ---- embers -----------------------------------------------------------
-    vec3 spark = embers(p, fy, t, P_EMBERS, uEmberColor) * (1.0 + 0.3 * hover);
+    vec3 spark = embers(p, fy, t, P_PARTICLES, uEmberColor) * (1.0 + 0.3 * hover);
 
     // ---- transmission ---------------------------------------------------
     vec3 body = vec3(0.010, 0.011, 0.014);

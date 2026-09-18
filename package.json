@@ -1,16 +1,16 @@
 {
-  "name": "fire-glass-button",
+  "name": "glass-button",
   "version": "0.1.0",
   "description": "Photorealistic WebGL2 glass pill button with procedural fire burning inside it.",
   "type": "module",
-  "main": "./dist/fire-glass-button.js",
-  "module": "./dist/fire-glass-button.js",
-  "types": "./dist/fire-glass-button.d.ts",
+  "main": "./dist/glass-button.js",
+  "module": "./dist/glass-button.js",
+  "types": "./dist/glass-button.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/fire-glass-button.d.ts",
-      "import": "./dist/fire-glass-button.js",
-      "default": "./dist/fire-glass-button.global.js"
+      "types": "./dist/glass-button.d.ts",
+      "import": "./dist/glass-button.js",
+      "default": "./dist/glass-button.global.js"
     }
   },
   "files": ["dist"],

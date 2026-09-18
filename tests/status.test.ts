@@ -6,7 +6,7 @@ describe('status table', () => {
     expect(STATUS_NAMES).toEqual(['healthy', 'warning', 'trouble', 'unknown']);
     for (const name of STATUS_NAMES) {
       const preset = STATUS_PRESETS[name];
-      expect(preset.palette.fire).toHaveLength(5);
+      expect(preset.palette.ramp).toHaveLength(5);
       expect(ICONS[preset.icon]).toContain('<svg');
       expect(preset.label).toBe(name);
     }
@@ -21,8 +21,8 @@ describe('status table', () => {
   it('flattens a palette into 18 floats, fire ramp first then rim', () => {
     const flat = flattenPalette(DEFAULT_PALETTE);
     expect(flat).toHaveLength(18);
-    expect(flat[0]).toBeCloseTo(DEFAULT_PALETTE.fire[0][0]);
-    expect(flat[14]).toBeCloseTo(DEFAULT_PALETTE.fire[4][2]);
+    expect(flat[0]).toBeCloseTo(DEFAULT_PALETTE.ramp[0][0]);
+    expect(flat[14]).toBeCloseTo(DEFAULT_PALETTE.ramp[4][2]);
     expect(flat[15]).toBeCloseTo(DEFAULT_PALETTE.rim[0]);
   });
 });

@@ -1,5 +1,5 @@
 /**
- * <fire-glass-button>
+ * <glass-button>
  *
  * A real <button> with slotted HTML text, sitting on top of a transparent,
  * oversized WebGL2 canvas that renders the glass pill, the fire inside it and
@@ -55,10 +55,10 @@ TEMPLATE.innerHTML = `<style>${STYLES}</style>
 </div>`;
 
 // eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
-export interface FireGlassButton extends Params {}
+export interface GlassButton extends Params {}
 
 // eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
-export class FireGlassButton extends HTMLElement {
+export class GlassButton extends HTMLElement {
   static get observedAttributes(): string[] {
     return [...PARAM_ATTRS, 'disabled', 'status', 'icon', 'effect'];
   }
@@ -72,13 +72,13 @@ export class FireGlassButton extends HTMLElement {
   // reflects to the attribute so attributeChangedCallback stays the single path.
   static {
     for (const def of PARAM_DEFS) {
-      Object.defineProperty(FireGlassButton.prototype, def.name, {
+      Object.defineProperty(GlassButton.prototype, def.name, {
         configurable: true,
         enumerable: true,
-        get(this: FireGlassButton): number {
+        get(this: GlassButton): number {
           return this.#effective[def.name];
         },
-        set(this: FireGlassButton, v: number) {
+        set(this: GlassButton, v: number) {
           this.setAttribute(def.attr, String(parseParam(def, v)));
         },
       });
@@ -316,7 +316,7 @@ export class FireGlassButton extends HTMLElement {
       this.#palette.set(this.#paletteTarget); // first paint: show the status immediately
       this.#paletteSettled = true;
     }
-    this.style.setProperty('--fgb-icon-color', palette.icon);
+    this.style.setProperty('--gb-icon-color', palette.icon);
     this.#srStatus.textContent = preset ? `Status: ${preset.label}` : '';
     this.#recomputeParams();
     this.#renderIcon();
@@ -460,7 +460,7 @@ export class FireGlassButton extends HTMLElement {
     const effectSettled = this.#stepEffect(dt);
     const settled = this.#interaction.step(dt) && paletteSettled && effectSettled;
     const reduced = this.#reduced;
-    if (!reduced) this.#fireTime += dt * this.#effective.fireSpeed;
+    if (!reduced) this.#fireTime += dt * this.#effective.speed;
 
     const s = this.#interaction.state;
     this.#hasRendered = true;
@@ -555,12 +555,12 @@ export class FireGlassButton extends HTMLElement {
   }
 }
 
-if (!customElements.get('fire-glass-button')) {
-  customElements.define('fire-glass-button', FireGlassButton);
+if (!customElements.get('glass-button')) {
+  customElements.define('glass-button', GlassButton);
 }
 
 declare global {
   interface HTMLElementTagNameMap {
-    'fire-glass-button': FireGlassButton;
+    'glass-button': GlassButton;
   }
 }

@@ -74,11 +74,11 @@ for (const scene of scenes) {
   });
   page.on('pageerror', (e) => console.log(`[${scene}] pageerror: ${e.message}`));
   await page.goto(base, { waitUntil: 'networkidle' });
-  await page.waitForFunction(() => customElements.get('fire-glass-button') !== undefined);
+  await page.waitForFunction(() => customElements.get('glass-button') !== undefined);
   // The fixed tuning panel would paint over element screenshots.
   await page.addStyleTag({ content: '.panel, .panel-toggle, .bgbar { display: none !important; }' });
 
-  const renderer = await page.evaluate(() => document.querySelector('fire-glass-button')?.dataset.renderer);
+  const renderer = await page.evaluate(() => document.querySelector('glass-button')?.dataset.renderer);
   const hero = page.locator('#hero');
   const heroButton = page.locator('#hero-button');
   let target = hero;
@@ -98,7 +98,7 @@ for (const scene of scenes) {
     target = page.locator('#statuses');
   } else if (scene === 'water' || scene === 'water-hover') {
     target = page.locator('#water');
-    if (scene === 'water-hover') await page.locator('#water fire-glass-button').first().hover();
+    if (scene === 'water-hover') await page.locator('#water glass-button').first().hover();
   } else if (scene === 'page') {
     target = null; // full page
   }

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>fire-glass-button demo</title>
+<title>glass-button demo</title>
 <style>
   :root { color-scheme: dark; }
   :root { --bg: #0b0d12; --fg: #dfe6f3; --muted: #8e9ab0; --code-fg: #c9d4e8; --code-bg: #141822; --border: #1d2230; --ui-bg: #161b26; }
@@ -18,14 +18,17 @@
   code { font: 13px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--code-fg); background: var(--code-bg); padding: 1px 6px; border-radius: 6px; }
   pre { font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--code-fg); background: var(--code-bg); border: 1px solid var(--border); padding: 14px 16px; border-radius: 12px; overflow: auto; }
   section.stage { display: grid; place-items: center; padding: 96px 24px 150px; }
+  #hero { padding-bottom: 110px; }
+  .hero-controls { justify-content: center; margin: -40px 0 0; padding: 0 24px; }
+  .hero-controls select { font: inherit; color: var(--fg); background: var(--ui-bg); border: 1px solid var(--border); border-radius: 8px; padding: 4px 8px; }
   .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 110px 40px; padding: 72px 24px 130px; justify-items: center; }
   .row { display: flex; flex-wrap: wrap; align-items: center; gap: 96px 48px; padding: 72px 24px 130px; }
-  fire-glass-button { font-size: 56px; }
-  fire-glass-button.l { font-size: 40px; }
-  fire-glass-button.m { font-size: 28px; }
-  fire-glass-button.s { font-size: 20px; }
+  glass-button { font-size: 56px; }
+  glass-button.l { font-size: 40px; }
+  glass-button.m { font-size: 28px; }
+  glass-button.s { font-size: 20px; }
   .mobile-frame { width: 390px; max-width: 100%; padding: 64px 20px 130px; box-sizing: border-box; border: 1px solid var(--border); border-radius: 28px; }
-  .mobile-frame fire-glass-button { width: 100%; font-size: 22px; }
+  .mobile-frame glass-button { width: 100%; font-size: 22px; }
   .controls { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; margin: 0 0 12px; }
   .controls label { display: inline-flex; align-items: center; gap: 8px; color: var(--code-fg); cursor: pointer; }
   button.ui { font: inherit; color: var(--fg); background: var(--ui-bg); border: 1px solid var(--border); border-radius: 10px; padding: 8px 14px; cursor: pointer; }
@@ -59,97 +62,90 @@
 </head>
 <body>
 <main>
-  <h1>fire-glass-button</h1>
-  <p class="lede">A real <code>&lt;button&gt;</code> under a WebGL2 render of thick glass with procedural fire inside. Hover, press, tab to it. Everything below is the same component at different sizes and settings.</p>
+  <h1>glass-button</h1>
+  <p class="lede">A real <code>&lt;button&gt;</code> under a WebGL2 render of thick glass with a procedural effect inside: fire or water, in four status colours. Hover, press, tab to it. Everything below is the same component at different sizes and settings.</p>
 
   <section id="hero" class="stage">
-    <fire-glass-button id="hero-button">Take Action →</fire-glass-button>
+    <glass-button id="hero-button">Take Action →</glass-button>
   </section>
-
-  <h2>Status modes</h2>
-  <p>The <code>status</code> attribute recolours the fire, the glass rim and the floor glow, shows a matching icon and nudges a few parameters. Changing it crossfades the palette. <code>icon="none"</code> hides the icon; <code>slot="icon"</code> supplies your own.</p>
-  <div class="controls">
-    <label>Cycle status on the hero: <select id="hero-status">
-      <option value="">none (default fire)</option>
+  <div class="controls hero-controls" aria-label="Hero button controls">
+    <label>Effect <select id="hero-effect">
+      <option value="fire">fire</option>
+      <option value="water">water</option>
+    </select></label>
+    <label>Status <select id="hero-status">
+      <option value="">none</option>
       <option value="healthy">healthy</option>
       <option value="warning">warning</option>
       <option value="trouble">trouble</option>
       <option value="unknown">unknown</option>
     </select></label>
+    <label><input type="checkbox" id="hold-pressed" /> Hold pressed</label>
+    <label><input type="checkbox" id="force-hover" /> Force hover</label>
+    <label><input type="checkbox" id="disabled" /> Disabled</label>
   </div>
+
+  <h2>Status modes</h2>
+  <p>The <code>status</code> attribute recolours the effect, the glass rim and the floor glow, shows a matching icon and nudges a few parameters. Changing it crossfades the palette. <code>icon="none"</code> hides the icon; <code>slot="icon"</code> supplies your own.</p>
   <section id="statuses" class="grid">
-    <fire-glass-button class="l" status="healthy">Healthy</fire-glass-button>
-    <fire-glass-button class="l" status="warning">Warning</fire-glass-button>
-    <fire-glass-button class="l" status="trouble">Trouble</fire-glass-button>
-    <fire-glass-button class="l" status="unknown">Unknown</fire-glass-button>
+    <glass-button class="l" status="healthy">Healthy</glass-button>
+    <glass-button class="l" status="warning">Warning</glass-button>
+    <glass-button class="l" status="trouble">Trouble</glass-button>
+    <glass-button class="l" status="unknown">Unknown</glass-button>
   </section>
 
   <h2>Water</h2>
   <p><code>effect="water"</code> swaps the combustion for a lit liquid: a waving surface with a specular crest, caustics, rising bubbles and a faint mist. Status palettes tint it; without a status it is aqua. Switching effects crossfades. Hover raises the waves; pressing sends a ripple across.</p>
-  <div class="controls">
-    <label>Hero effect: <select id="hero-effect">
-      <option value="fire">fire</option>
-      <option value="water">water</option>
-    </select></label>
-  </div>
   <section id="water" class="grid">
-    <fire-glass-button class="l" effect="water">Dive In →</fire-glass-button>
-    <fire-glass-button class="l" effect="water" status="healthy">Healthy</fire-glass-button>
-    <fire-glass-button class="l" effect="water" status="warning">Warning</fire-glass-button>
-    <fire-glass-button class="l" effect="water" status="trouble">Trouble</fire-glass-button>
+    <glass-button class="l" effect="water">Dive In →</glass-button>
+    <glass-button class="l" effect="water" status="healthy">Healthy</glass-button>
+    <glass-button class="l" effect="water" status="warning">Warning</glass-button>
+    <glass-button class="l" effect="water" status="trouble">Trouble</glass-button>
   </section>
 
   <h2>States</h2>
-  <p>Idle burns low. Hovering raises the flames, the lower glass illumination and the rim brightness over a few hundred milliseconds. Moving the pointer slides the key light across the glass. Pressing compresses the pill slightly and pulses the fire, then relaxes with no bounce.</p>
-  <div class="controls">
-    <label><input type="checkbox" id="hold-pressed" /> Hold pressed state</label>
-    <label><input type="checkbox" id="force-hover" /> Force hover (for screenshots)</label>
-    <label><input type="checkbox" id="disabled" /> Disabled</label>
-  </div>
-  <section id="states" class="stage">
-    <fire-glass-button id="state-button">Take Action →</fire-glass-button>
-  </section>
+  <p>Idle burns low. Hovering raises the effect, the lower glass illumination and the rim brightness over a few hundred milliseconds. Moving the pointer slides the key light across the glass. Pressing compresses the pill slightly and pulses the effect, then relaxes with no bounce. Use the controls under the hero button above to hold these states.</p>
 
   <h2>Sizes</h2>
-  <p>The shader works in units of pill height, so rims, refraction and flame scale stay proportional. The fire buffer keeps a fixed texel density per pill height instead of stretching.</p>
+  <p>The shader works in units of pill height, so rims, refraction and effect scale stay proportional. The effect buffer keeps a fixed texel density per pill height instead of stretching.</p>
   <section id="sizes" class="row">
-    <fire-glass-button class="l">Take Action →</fire-glass-button>
-    <fire-glass-button class="m">Take Action →</fire-glass-button>
-    <fire-glass-button class="s">Take Action →</fire-glass-button>
+    <glass-button class="l">Take Action →</glass-button>
+    <glass-button class="m">Take Action →</glass-button>
+    <glass-button class="s">Take Action →</glass-button>
   </section>
 
   <h2>Mobile width</h2>
-  <p>An explicit width on the host stretches the pill; the fire still scales with the height.</p>
+  <p>An explicit width on the host stretches the pill; the effect still scales with the height.</p>
   <section id="mobile" class="mobile-frame">
-    <fire-glass-button>Take Action →</fire-glass-button>
+    <glass-button>Take Action →</glass-button>
   </section>
 
   <h2>Reduced motion</h2>
-  <p>With <code>prefers-reduced-motion: reduce</code> the fire is frozen in place and the renderer only draws while a hover or press state is easing. The design stays intact. The toggle below forces it via the <code>reducedMotion</code> property.</p>
+  <p>With <code>prefers-reduced-motion: reduce</code> the effect is frozen in place and the renderer only draws while a hover or press state is easing. The design stays intact. The toggle below forces it via the <code>reducedMotion</code> property.</p>
   <div class="controls">
     <label><input type="checkbox" id="reduced" /> Force reduced motion on this button</label>
   </div>
   <section id="reduced-stage" class="stage">
-    <fire-glass-button id="reduced-button" class="l">Take Action →</fire-glass-button>
+    <glass-button id="reduced-button" class="l">Take Action →</glass-button>
   </section>
 
   <h2>CSS fallback</h2>
   <p>When WebGL2 is unavailable the element sets <code>data-renderer="css"</code> and the shadow stylesheet paints a simplified glass and glow. Setting that attribute yourself forces the fallback, as here.</p>
   <section id="fallback" class="stage">
-    <fire-glass-button class="l" data-renderer="css">Take Action →</fire-glass-button>
+    <glass-button class="l" data-renderer="css">Take Action →</glass-button>
   </section>
 
   <h2>Usage</h2>
-<pre>&lt;script type="module" src="fire-glass-button.js"&gt;&lt;/script&gt;
+<pre>&lt;script type="module" src="glass-button.js"&gt;&lt;/script&gt;
 
-&lt;fire-glass-button fire-height="1.2" bloom-strength="0.8"&gt;
+&lt;glass-button level="1.2" bloom="0.8"&gt;
   Take Action →
-&lt;/fire-glass-button&gt;
+&lt;/glass-button&gt;
 
 &lt;script type="module"&gt;
-  const el = document.querySelector('fire-glass-button');
+  const el = document.querySelector('glass-button');
   el.addEventListener('click', () =&gt; console.log('clicked'));
-  el.fireIntensity = 1.3;                 // property ↔ attribute
+  el.intensity = 1.3;                 // property ↔ attribute
   el.params = { turbulence: 1.4 };        // merge several at once
 &lt;/script&gt;</pre>
 </main>
@@ -175,9 +171,9 @@
 </aside>
 
 <script type="module">
-  import { FireGlassButton } from '../dist/fire-glass-button.js';
+  import { GlassButton } from '../dist/glass-button.js';
 
-  const all = () => Array.from(document.querySelectorAll('fire-glass-button'));
+  const all = () => Array.from(document.querySelectorAll('glass-button'));
 
   // ---- page background switcher ---------------------------------------
   // `css` is the body background; `light` flips the prose colours.
@@ -202,7 +198,7 @@
     document.documentElement.style.setProperty('--bg', bg.css);
     document.documentElement.toggleAttribute('data-light', bg.light);
     for (const b of bgbar.querySelectorAll('button.swatch')) b.setAttribute('aria-pressed', String(b.dataset.bg === key && !custom));
-    try { localStorage.setItem('fgb-demo-bg', custom ? `custom:${custom}` : key); } catch {}
+    try { localStorage.setItem('gb-demo-bg', custom ? `custom:${custom}` : key); } catch {}
     const url = new URL(location.href);
     if (custom) url.searchParams.set('bg', custom); else url.searchParams.set('bg', key);
     history.replaceState(null, '', url);
@@ -226,24 +222,23 @@
   {
     const fromUrl = new URL(location.href).searchParams.get('bg');
     let saved = null;
-    try { saved = localStorage.getItem('fgb-demo-bg'); } catch {}
+    try { saved = localStorage.getItem('gb-demo-bg'); } catch {}
     const initial = fromUrl ?? saved ?? 'charcoal';
     if (initial.startsWith('#')) { bgCustom.value = initial; applyBackground(null, initial); }
     else if (initial.startsWith('custom:')) { bgCustom.value = initial.slice(7); applyBackground(null, initial.slice(7)); }
     else applyBackground(BACKGROUNDS[initial] ? initial : 'charcoal');
   }
   const hero = document.getElementById('hero-button');
-  const stateButton = document.getElementById('state-button');
 
   // ---- state toggles ---------------------------------------------------
   document.getElementById('hold-pressed').addEventListener('change', (e) => {
-    stateButton.toggleAttribute('data-pressed', e.target.checked);
-    stateButton.shadowRoot.querySelector('button').dispatchEvent(
+    hero.toggleAttribute('data-pressed', e.target.checked);
+    hero.shadowRoot.querySelector('button').dispatchEvent(
       new MouseEvent(e.target.checked ? 'pointerdown' : 'pointerup', { bubbles: true, button: 0 }),
     );
   });
   document.getElementById('force-hover').addEventListener('change', (e) => {
-    const b = stateButton.shadowRoot.querySelector('button');
+    const b = hero.shadowRoot.querySelector('button');
     const r = b.getBoundingClientRect();
     b.dispatchEvent(new MouseEvent(e.target.checked ? 'pointerenter' : 'pointerleave', {
       bubbles: true, clientX: r.left + r.width * 0.3, clientY: r.top + r.height * 0.4,
@@ -256,24 +251,24 @@
     hero.effect = e.target.value;
   });
   document.getElementById('disabled').addEventListener('change', (e) => {
-    stateButton.disabled = e.target.checked;
+    hero.disabled = e.target.checked;
   });
   document.getElementById('reduced').addEventListener('change', (e) => {
     document.getElementById('reduced-button').reducedMotion = e.target.checked ? true : 'auto';
   });
 
   // ---- tuning panel ------------------------------------------------------
-  const defaults = FireGlassButton.defaults;
+  const defaults = GlassButton.defaults;
   const attrOf = {
-    fireIntensity: 'fire-intensity', fireHeight: 'fire-height', turbulence: 'turbulence', fireSpeed: 'fire-speed',
-    glassOpacity: 'glass-opacity', glassThickness: 'glass-thickness', refractionStrength: 'refraction-strength',
-    bloomStrength: 'bloom-strength', reflectionStrength: 'reflection-strength', emberDensity: 'ember-density',
-    heatDistortion: 'heat-distortion',
+    intensity: 'intensity', level: 'level', turbulence: 'turbulence', speed: 'speed',
+    glassOpacity: 'glass-opacity', glassThickness: 'glass-thickness', refraction: 'refraction',
+    bloom: 'bloom', reflection: 'reflection', particles: 'particles',
+    shimmer: 'shimmer',
   };
   const ranges = {
-    fireIntensity: [0, 3], fireHeight: [0, 2.5], turbulence: [0, 3], fireSpeed: [0, 4], glassOpacity: [0, 1],
-    glassThickness: [0.2, 3], refractionStrength: [0, 3], bloomStrength: [0, 3], reflectionStrength: [0, 3],
-    emberDensity: [0, 4], heatDistortion: [0, 3],
+    intensity: [0, 3], level: [0, 2.5], turbulence: [0, 3], speed: [0, 4], glassOpacity: [0, 1],
+    glassThickness: [0.2, 3], refraction: [0, 3], bloom: [0, 3], reflection: [0, 3],
+    particles: [0, 4], shimmer: [0, 3],
   };
   const paramsRoot = document.getElementById('params');
   const attrsOut = document.getElementById('attrs');

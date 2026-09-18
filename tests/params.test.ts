@@ -7,18 +7,18 @@ describe('params', () => {
     expect(Object.keys(d)).toHaveLength(11);
     expect(PARAM_ATTRS).toHaveLength(11);
     expect(d.glassOpacity).toBe(0.82);
-    expect(d.fireIntensity).toBe(1);
+    expect(d.intensity).toBe(1);
   });
 
   it('returns a fresh object from defaults()', () => {
     const a = defaults();
-    a.fireHeight = 42;
-    expect(defaults().fireHeight).not.toBe(42);
+    a.level = 42;
+    expect(defaults().level).not.toBe(42);
   });
 
   it('maps kebab-case attributes to camelCase names', () => {
-    expect(attrToParam('fire-height')?.name).toBe('fireHeight');
-    expect(attrToParam('refraction-strength')?.name).toBe('refractionStrength');
+    expect(attrToParam('level')?.name).toBe('level');
+    expect(attrToParam('refraction')?.name).toBe('refraction');
     expect(attrToParam('nope')).toBeUndefined();
   });
 
@@ -31,7 +31,7 @@ describe('params', () => {
   });
 
   it('clamps to the documented range', () => {
-    const def = PARAM_DEFS.find((p) => p.name === 'bloomStrength')!;
+    const def = PARAM_DEFS.find((p) => p.name === 'bloom')!;
     expect(parseParam(def, '99')).toBe(def.max);
     expect(parseParam(def, '-1')).toBe(def.min);
     expect(parseParam(def, 1.5)).toBe(1.5);

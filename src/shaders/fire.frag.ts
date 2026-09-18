@@ -45,10 +45,10 @@ uniform float uPulse;
 uniform float uEncode;  // 1.0 for float targets, <1 to fit HDR into 8 bits
 uniform float uFade;    // crossfade weight for this effect (see renderer)
 uniform vec4 uParams[3];
-uniform vec3 uFireRamp[5]; // temperature ramp: edge, low, mid, hot, core (linear HDR)
+uniform vec3 uRamp[5]; // temperature ramp: edge, low, mid, hot, core (linear HDR)
 
-#define P_FIRE_INTENSITY  uParams[0].x
-#define P_FIRE_HEIGHT     uParams[0].y
+#define P_INTENSITY  uParams[0].x
+#define P_LEVEL     uParams[0].y
 #define P_TURBULENCE      uParams[0].z
 
 ${NOISE_GLSL}
@@ -57,10 +57,10 @@ ${NOISE_GLSL}
 // are intentional: the composite pass tonemaps, and the bloom pass picks
 // them up.
 vec3 fireColor(float heat) {
-  vec3 c = mix(uFireRamp[0], uFireRamp[1], smoothstep(0.0, 0.2, heat));
-  c = mix(c, uFireRamp[2], smoothstep(0.2, 0.55, heat));
-  c = mix(c, uFireRamp[3], smoothstep(0.6, 1.0, heat));
-  c = mix(c, uFireRamp[4], smoothstep(1.1, 1.6, heat));
+  vec3 c = mix(uRamp[0], uRamp[1], smoothstep(0.0, 0.2, heat));
+  c = mix(c, uRamp[2], smoothstep(0.2, 0.55, heat));
+  c = mix(c, uRamp[3], smoothstep(0.6, 1.0, heat));
+  c = mix(c, uRamp[4], smoothstep(1.1, 1.6, heat));
   return c;
 }
 
@@ -96,7 +96,7 @@ void main() {
   // toward the rounded ends where the flames climb the end walls.
   float endT = smoothstep(0.55, 1.0, abs(x) / max(uHalfW, 0.5));
   float endLift = endT * 0.30;
-  float ceilH = (0.40 + endLift) * P_FIRE_HEIGHT * (1.0 + 0.22 * hover + 0.10 * press);
+  float ceilH = (0.40 + endLift) * P_LEVEL * (1.0 + 0.22 * hover + 0.10 * press);
   float h = fy / max(ceilH, 1e-3);
 
   float noise = n0 * 0.92 + n1 * 0.09 + rd * 0.13;
@@ -117,7 +117,7 @@ void main() {
   density *= 1.0 - smoothstep(-0.04, 0.03, dPill);
   density *= 1.0 - smoothstep(1.15, 1.6, h);
 
-  float intensity = P_FIRE_INTENSITY * (1.0 + 0.22 * hover + 0.12 * press + 0.25 * uPulse);
+  float intensity = P_INTENSITY * (1.0 + 0.22 * hover + 0.12 * press + 0.25 * uPulse);
   float heat = max(density, 0.0) * intensity;
 
   // ---- 4. colour ----------------------------------------------------------

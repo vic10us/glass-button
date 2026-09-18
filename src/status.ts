@@ -15,8 +15,8 @@ export type StatusName = (typeof STATUS_NAMES)[number];
 export type RGB = readonly [number, number, number];
 
 export interface Palette {
-  /** Fire temperature ramp, coolest to hottest. */
-  fire: readonly [RGB, RGB, RGB, RGB, RGB];
+  /** Effect colour ramp, coolest/deepest to hottest/brightest. */
+  ramp: readonly [RGB, RGB, RGB, RGB, RGB];
   /** Tint of the glass edge light and side reflections. */
   rim: RGB;
   /** CSS colour for the built-in icon. */
@@ -35,7 +35,7 @@ export interface StatusPreset {
 
 /** The default look when no status is set: the original orange fire. */
 export const DEFAULT_PALETTE: Palette = {
-  fire: [
+  ramp: [
     [0.55, 0.015, 0.0],
     [1.1, 0.1, 0.0],
     [1.6, 0.42, 0.02],
@@ -49,7 +49,7 @@ export const DEFAULT_PALETTE: Palette = {
 export const STATUS_PRESETS: Readonly<Record<StatusName, StatusPreset>> = {
   healthy: {
     palette: {
-      fire: [
+      ramp: [
         [0.0, 0.3, 0.02],
         [0.02, 0.85, 0.06],
         [0.14, 1.6, 0.14],
@@ -65,7 +65,7 @@ export const STATUS_PRESETS: Readonly<Record<StatusName, StatusPreset>> = {
   },
   warning: {
     palette: {
-      fire: [
+      ramp: [
         [0.6, 0.06, 0.0],
         [1.3, 0.2, 0.0],
         [1.9, 0.5, 0.02],
@@ -81,7 +81,7 @@ export const STATUS_PRESETS: Readonly<Record<StatusName, StatusPreset>> = {
   },
   trouble: {
     palette: {
-      fire: [
+      ramp: [
         [0.45, 0.0, 0.0],
         [1.2, 0.03, 0.0],
         [1.9, 0.12, 0.02],
@@ -97,7 +97,7 @@ export const STATUS_PRESETS: Readonly<Record<StatusName, StatusPreset>> = {
   },
   unknown: {
     palette: {
-      fire: [
+      ramp: [
         [0.0, 0.04, 0.4],
         [0.02, 0.24, 1.0],
         [0.1, 0.6, 1.7],
@@ -108,7 +108,7 @@ export const STATUS_PRESETS: Readonly<Record<StatusName, StatusPreset>> = {
       icon: '#66b8ff',
     },
     // Plasma rather than combustion: lower, smoother, more sparkle.
-    params: { fireHeight: 0.85, turbulence: 1.3, emberDensity: 2.2, fireIntensity: 0.95 },
+    params: { level: 0.85, turbulence: 1.3, particles: 2.2, intensity: 0.95 },
     icon: 'question',
     label: 'unknown',
   },
@@ -121,7 +121,7 @@ export type EffectName = (typeof EFFECT_NAMES)[number];
 
 /** Default palette for effect="water" when no status is set: deep teal to pale cyan. */
 export const WATER_PALETTE: Palette = {
-  fire: [
+  ramp: [
     [0.0, 0.05, 0.14],
     [0.0, 0.22, 0.55],
     [0.05, 0.6, 1.1],
@@ -138,10 +138,10 @@ export interface EffectPreset {
 }
 
 /**
- * Effect presets. The parameter names keep their fire meaning in the API;
- * for water they map to: fireHeight -> water level, turbulence -> wave
- * amplitude, fireSpeed -> flow speed, emberDensity -> bubbles and sparkle,
- * fireIntensity -> brightness, heatDistortion -> surface shimmer.
+ * Effect presets. Parameters are generic across effects; for fire, level is
+ * flame height and particles are embers. For water they map to: level -> water level, turbulence -> wave
+ * amplitude, speed -> flow speed, particles -> bubbles and sparkle,
+ * intensity -> brightness, shimmer -> surface shimmer.
  */
 export const EFFECT_PRESETS: Readonly<Record<EffectName, EffectPreset>> = {
   fire: { params: {} },
@@ -156,12 +156,12 @@ export function isStatus(v: unknown): v is StatusName {
   return typeof v === 'string' && (STATUS_NAMES as readonly string[]).includes(v);
 }
 
-/** Flatten a palette into the 18 floats the renderer uploads (5 fire + rim). */
+/** Flatten a palette into the 18 floats the renderer uploads (5 ramp + rim). */
 export function flattenPalette(p: Palette, out: Float32Array = new Float32Array(18)): Float32Array {
   for (let i = 0; i < 5; i++) {
-    out[i * 3] = p.fire[i][0];
-    out[i * 3 + 1] = p.fire[i][1];
-    out[i * 3 + 2] = p.fire[i][2];
+    out[i * 3] = p.ramp[i][0];
+    out[i * 3 + 1] = p.ramp[i][1];
+    out[i * 3 + 2] = p.ramp[i][2];
   }
   out[15] = p.rim[0];
   out[16] = p.rim[1];

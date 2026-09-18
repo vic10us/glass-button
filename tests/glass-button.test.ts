@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { FireGlassButton } from '../src/fire-glass-button';
+import { GlassButton } from '../src/glass-button';
 
 // jsdom has no PointerEvent; the element only reads MouseEvent fields.
 function pointer(type: string, init: MouseEventInit = {}): MouseEvent {
   return new MouseEvent(type, { bubbles: true, ...init });
 }
 
-function mount(html = 'Take Action →'): FireGlassButton {
-  const el = document.createElement('fire-glass-button') as FireGlassButton;
+function mount(html = 'Take Action →'): GlassButton {
+  const el = document.createElement('glass-button') as GlassButton;
   el.innerHTML = html;
   document.body.appendChild(el);
   return el;
@@ -24,8 +24,8 @@ afterEach(() => {
 });
 
 describe('registration', () => {
-  it('defines fire-glass-button', () => {
-    expect(customElements.get('fire-glass-button')).toBe(FireGlassButton);
+  it('defines glass-button', () => {
+    expect(customElements.get('glass-button')).toBe(GlassButton);
   });
 });
 
@@ -54,39 +54,39 @@ describe('shadow DOM', () => {
 describe('parameters', () => {
   it('reflects property writes to attributes', () => {
     const el = mount();
-    el.fireHeight = 1.5;
-    expect(el.getAttribute('fire-height')).toBe('1.5');
-    expect(el.fireHeight).toBe(1.5);
+    el.level = 1.5;
+    expect(el.getAttribute('level')).toBe('1.5');
+    expect(el.level).toBe(1.5);
   });
 
   it('parses and clamps attribute writes', () => {
     const el = mount();
-    el.setAttribute('bloom-strength', '9');
-    expect(el.bloomStrength).toBe(3);
-    el.setAttribute('bloom-strength', 'garbage');
-    expect(el.bloomStrength).toBe(1);
+    el.setAttribute('bloom', '9');
+    expect(el.bloom).toBe(3);
+    el.setAttribute('bloom', 'garbage');
+    expect(el.bloom).toBe(1);
   });
 
   it('reads attributes present before upgrade', () => {
-    document.body.innerHTML = '<fire-glass-button fire-speed="2.5">Go</fire-glass-button>';
-    const el = document.querySelector('fire-glass-button') as FireGlassButton;
-    expect(el.fireSpeed).toBe(2.5);
+    document.body.innerHTML = '<glass-button speed="2.5">Go</glass-button>';
+    const el = document.querySelector('glass-button') as GlassButton;
+    expect(el.speed).toBe(2.5);
   });
 
   it('exposes all parameters through the params object', () => {
     const el = mount();
     expect(Object.keys(el.params)).toHaveLength(11);
-    el.params = { fireSpeed: 2 };
-    expect(el.fireSpeed).toBe(2);
+    el.params = { speed: 2 };
+    expect(el.speed).toBe(2);
     expect(el.glassOpacity).toBe(0.82);
-    expect(el.getAttribute('fire-speed')).toBe('2');
+    expect(el.getAttribute('speed')).toBe('2');
   });
 
   it('exposes a defensive copy of the defaults', () => {
-    const d = FireGlassButton.defaults;
+    const d = GlassButton.defaults;
     expect(d.glassOpacity).toBe(0.82);
     d.glassOpacity = 0;
-    expect(FireGlassButton.defaults.glassOpacity).toBe(0.82);
+    expect(GlassButton.defaults.glassOpacity).toBe(0.82);
   });
 });
 
@@ -238,13 +238,13 @@ describe('status', () => {
   it('applies preset parameter nudges under explicit attributes', () => {
     const el = mount();
     el.status = 'unknown';
-    expect(el.fireHeight).toBeCloseTo(0.85);
-    el.fireHeight = 1.5;
-    expect(el.fireHeight).toBe(1.5);
+    expect(el.level).toBeCloseTo(0.85);
+    el.level = 1.5;
+    expect(el.level).toBe(1.5);
     el.status = 'healthy';
-    expect(el.fireHeight).toBe(1.5);
-    el.removeAttribute('fire-height');
-    expect(el.fireHeight).toBe(1);
+    expect(el.level).toBe(1.5);
+    el.removeAttribute('level');
+    expect(el.level).toBe(1);
   });
 
   it('hides the icon with icon="none" and exposes the icon colour', () => {
@@ -254,14 +254,14 @@ describe('status', () => {
     expect(root.querySelector('.icon')!.hasAttribute('hidden')).toBe(false);
     el.setAttribute('icon', 'none');
     expect(root.querySelector('.icon')!.hasAttribute('hidden')).toBe(true);
-    expect(el.style.getPropertyValue('--fgb-icon-color')).toBe('#7df59a');
+    expect(el.style.getPropertyValue('--gb-icon-color')).toBe('#7df59a');
   });
 
   it('accepts a custom palette', () => {
     const el = mount();
-    el.palette = { fire: [[0, 0, 0.3], [0, 0, 1], [0.2, 0.3, 1.5], [0.6, 0.8, 2], [2, 2, 3]], rim: [0.5, 0.5, 1], icon: '#8080ff' };
+    el.palette = { ramp: [[0, 0, 0.3], [0, 0, 1], [0.2, 0.3, 1.5], [0.6, 0.8, 2], [2, 2, 3]], rim: [0.5, 0.5, 1], icon: '#8080ff' };
     expect(el.palette?.icon).toBe('#8080ff');
-    expect(el.style.getPropertyValue('--fgb-icon-color')).toBe('#8080ff');
+    expect(el.style.getPropertyValue('--gb-icon-color')).toBe('#8080ff');
     el.palette = null;
     expect(el.palette).toBeNull();
   });
@@ -286,12 +286,12 @@ describe('effect', () => {
   it('uses the aqua palette for water without a status, and the status palette with one', () => {
     const el = mount();
     el.effect = 'water';
-    expect(el.style.getPropertyValue('--fgb-icon-color')).toBe('#5fd4ff');
+    expect(el.style.getPropertyValue('--gb-icon-color')).toBe('#5fd4ff');
     el.status = 'healthy';
-    expect(el.style.getPropertyValue('--fgb-icon-color')).toBe('#7df59a');
+    expect(el.style.getPropertyValue('--gb-icon-color')).toBe('#7df59a');
     el.status = null;
-    expect(el.style.getPropertyValue('--fgb-icon-color')).toBe('#5fd4ff');
+    expect(el.style.getPropertyValue('--gb-icon-color')).toBe('#5fd4ff');
     el.effect = 'fire';
-    expect(el.style.getPropertyValue('--fgb-icon-color')).toBe('#ffb864');
+    expect(el.style.getPropertyValue('--gb-icon-color')).toBe('#ffb864');
   });
 });

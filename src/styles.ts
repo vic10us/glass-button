@@ -11,8 +11,8 @@ export const STYLES = /* css */ `
   display: inline-block;
   position: relative;
   vertical-align: middle;
-  font: 500 1rem/1 var(--fgb-font, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif);
-  color: var(--fgb-text-color, #f4f7ff);
+  font: 500 1rem/1 var(--gb-font, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif);
+  color: var(--gb-text-color, #f4f7ff);
   /* The canvas overflows the host (glow beneath the pill), like a drop shadow would. */
   isolation: isolate;
   -webkit-tap-highlight-color: transparent;
@@ -52,7 +52,7 @@ button {
   width: 100%;
   height: 100%;
   margin: 0;
-  padding: var(--fgb-padding, 0.95em 2.4em);
+  padding: var(--gb-padding, 0.95em 2.4em);
   border: 0;
   border-radius: 999px;
   background: transparent;
@@ -70,7 +70,7 @@ button {
 }
 
 button:focus-visible {
-  outline: 2px solid var(--fgb-focus-ring, rgba(200, 225, 255, 0.9));
+  outline: 2px solid var(--gb-focus-ring, rgba(200, 225, 255, 0.9));
   outline-offset: 5px;
 }
 
@@ -98,8 +98,8 @@ button:disabled {
   width: 1.05em;
   height: 1.05em;
   margin-right: 0.15em;
-  color: var(--fgb-icon-color, currentColor);
-  filter: drop-shadow(0 0 0.18em color-mix(in srgb, var(--fgb-icon-color, currentColor) 70%, transparent));
+  color: var(--gb-icon-color, currentColor);
+  filter: drop-shadow(0 0 0.18em color-mix(in srgb, var(--gb-icon-color, currentColor) 70%, transparent));
   transition: color 500ms ease;
   flex: none;
 }

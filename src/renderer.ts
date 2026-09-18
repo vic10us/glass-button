@@ -26,7 +26,7 @@ import { QUAD_VERT } from './shaders/quad.vert';
 import { WATER_FRAG } from './shaders/water.frag';
 
 export interface RenderFrame {
-  /** Fire time in seconds (already scaled by fireSpeed, frozen under reduced motion). */
+  /** Fire time in seconds (already scaled by speed, frozen under reduced motion). */
   time: number;
   dt: number;
   params: Params;
@@ -61,7 +61,7 @@ const BLOOM_SCALE = 0.5;
 /** Peak HDR value expected from the fire shader; used to encode into RGBA8 when floats are unavailable. */
 const HDR_RANGE = 6;
 
-const EFFECT_UNIFORMS = ['uExtent', 'uHalfW', 'uTime', 'uHover', 'uPress', 'uPulse', 'uEncode', 'uFade', 'uParams', 'uFireRamp'] as const;
+const EFFECT_UNIFORMS = ['uExtent', 'uHalfW', 'uTime', 'uHover', 'uPress', 'uPulse', 'uEncode', 'uFade', 'uParams', 'uRamp'] as const;
 const BLUR_UNIFORMS = ['uSrc', 'uDir'] as const;
 const COMPOSITE_UNIFORMS = [
   'uRes',
@@ -101,7 +101,7 @@ export class Renderer {
     try {
       return new Renderer(gl);
     } catch (err) {
-      console.error('[fire-glass-button] renderer init failed, using CSS fallback', err);
+      console.error('[glass-button] renderer init failed, using CSS fallback', err);
       return null;
     }
   }
@@ -287,7 +287,7 @@ export class Renderer {
     gl.uniform1f(u.uEncode, this.encode);
     gl.uniform1f(u.uFade, fade);
     gl.uniform4fv(u.uParams, this.paramBuf);
-    gl.uniform3fv(u.uFireRamp, frame.palette, 0, 15);
+    gl.uniform3fv(u.uRamp, frame.palette, 0, 15);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
   }
 
