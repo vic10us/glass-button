@@ -14,7 +14,7 @@ Zero runtime dependencies. Ships as ESM and as a plain `<script>` IIFE.
 ## Install
 
 ```bash
-npm install glass-button
+npm install @vic10us/glass-button
 ```
 
 ## Usage
@@ -22,7 +22,7 @@ npm install glass-button
 ### Vanilla HTML/JS
 
 ```html
-<script type="module" src="node_modules/glass-button/dist/glass-button.js"></script>
+<script type="module" src="node_modules/@vic10us/glass-button/dist/glass-button.js"></script>
 
 <glass-button>Take Action →</glass-button>
 
@@ -34,10 +34,10 @@ npm install glass-button
 </script>
 ```
 
-Or via the global build:
+Or via the global build (also on a CDN: `https://cdn.jsdelivr.net/npm/@vic10us/glass-button/dist/glass-button.global.js`):
 
 ```html
-<script src="node_modules/glass-button/dist/glass-button.global.js"></script>
+<script src="node_modules/@vic10us/glass-button/dist/glass-button.global.js"></script>
 <glass-button>Take Action →</glass-button>
 ```
 
@@ -51,7 +51,7 @@ React 19 binds attributes, properties and custom events on custom elements
 directly:
 
 ```jsx
-import 'glass-button';
+import '@vic10us/glass-button';
 
 export function Health({ status, onChange }) {
   return (
@@ -68,7 +68,7 @@ a ref:
 
 ```jsx
 import { useEffect, useRef } from 'react';
-import 'glass-button';
+import '@vic10us/glass-button';
 
 export function Health({ status, onChange }) {
   const ref = useRef(null);
@@ -96,7 +96,7 @@ export default {
 
 ```vue
 <script setup>
-import 'glass-button';
+import '@vic10us/glass-button';
 defineProps({ status: String });
 </script>
 
@@ -113,7 +113,7 @@ Add `CUSTOM_ELEMENTS_SCHEMA` to the module or standalone component:
 
 ```ts
 import { Component, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
-import 'glass-button';
+import '@vic10us/glass-button';
 
 @Component({
   selector: 'app-health',
@@ -128,7 +128,7 @@ export class HealthComponent { status = 'healthy'; onChange(e: Event) { /* (e as
 
 ```svelte
 <script>
-  import 'glass-button';
+  import '@vic10us/glass-button';
   export let status = 'healthy';
 </script>
 

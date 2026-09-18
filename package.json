@@ -1,24 +1,50 @@
 {
-  "name": "glass-button",
+  "name": "@vic10us/glass-button",
   "version": "0.1.0",
   "description": "Photorealistic WebGL2 glass pill button with procedural fire/water inside it.",
+  "keywords": [
+    "web-component",
+    "custom-element",
+    "button",
+    "webgl",
+    "webgl2",
+    "glass",
+    "fire",
+    "water",
+    "shader",
+    "status"
+  ],
+  "author": "vic10us",
+  "license": "MIT",
   "type": "module",
+  "sideEffects": true,
   "main": "./dist/glass-button.js",
   "module": "./dist/glass-button.js",
   "types": "./dist/glass-button.d.ts",
+  "unpkg": "./dist/glass-button.global.js",
+  "jsdelivr": "./dist/glass-button.global.js",
   "exports": {
     ".": {
       "types": "./dist/glass-button.d.ts",
       "import": "./dist/glass-button.js",
-      "default": "./dist/glass-button.global.js"
-    }
+      "default": "./dist/glass-button.js"
+    },
+    "./global": "./dist/glass-button.global.js",
+    "./package.json": "./package.json"
   },
-  "files": ["dist"],
+  "files": [
+    "dist",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsup",
     "test": "vitest run",
     "test:watch": "vitest",
-    "shot": "tsup && node tools/screenshot.mjs"
+    "shot": "tsup && node tools/screenshot.mjs",
+    "prepublishOnly": "npm test && npm run build"
   },
   "devDependencies": {
     "jsdom": "^24.0.0",
