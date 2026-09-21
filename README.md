@@ -284,11 +284,27 @@ height so the look is identical at any size:
    the buffer.
 2. **Blur** at half that resolution, run twice. Used as bloom and as the
    fire's illuminance map for lighting the glass and the floor.
-3. **Composite** at device resolution: pill signed-distance field, a
-   filleted cross-section normal, Schlick Fresnel, a procedural studio
-   environment (cool strip softbox above and behind, blue side lights, dark
-   backdrop), refraction with chromatic aberration, heat shimmer, embers,
-   warm edge light from the fire, mirrored floor reflection, ACES tonemap.
+3. **Composite** at device resolution: pill signed-distance field and a
+   filleted cross-section normal, then four separate contributions summed
+   into premultiplied colour and alpha:
+   - *Environment reflection* weighted by Schlick Fresnel. Explicit studio
+     lights (a cool strip softbox above and behind that follows the
+     pointer, a fill, two side lights) are added as colour; the ambient
+     surround is taken to be the page itself and is expressed by letting
+     the page show through in proportion to Fresnel. The same edges
+     therefore reflect black on a dark page and white on a light one.
+   - *Transmission* of the page through the tinted body with Beer-Lambert
+     attenuation over a thickness that follows the cross-section (full slab
+     at the centre, thinning through the fillet), plus a narrow
+     total-internal-reflection band that mirrors the interior instead.
+   - *Emission* from the effect, sampled through the refracting front
+     surface with chromatic aberration and heat shimmer, plus bloom and
+     embers. Dense flame occludes the page so it stays saturated on white.
+   - *Illumination of the glass by the effect*: warm Fresnel rim along the
+     bottom and ends, in-scatter that grows with thickness, and a faint
+     mirror of the fire on the upper inner face.
+   Outside the pill: light leak at the silhouette and a mirrored floor
+   reflection. ACES tonemap, sRGB encode.
 
 Shader sources are in `src/shaders/` and are commented for modification.
 
@@ -319,7 +335,9 @@ addressable as `?bg=<key|#hex>`.
 
 `demo/index.html` (serve the repo root, e.g. `npx serve .`) is the same
 page that GitHub Pages publishes from `main` via
-`.github/workflows/pages.yml`. It shows
+`.github/workflows/pages.yml`. Use the background switcher (bottom left) to
+check the glass on dark, mid-grey and white pages: it should read as the
+same object on each. It shows
 the four status modes, water, idle, hover, pressed, sizes, mobile width, reduced
 motion and the CSS fallback, with a tuning panel for every parameter and an
 FPS readout.

@@ -2,7 +2,7 @@
 /**
  * Headless screenshot tool for visual tuning.
  *
- *   node tools/screenshot.mjs [scene ...] [--wait=ms] [--out=dir] [--bg=key|#hex]
+ *   node tools/screenshot.mjs [scene ...] [--wait=ms] [--out=dir] [--bg=key|#hex] [--target=selector]
  *
  * Scenes: idle, hover, press, sizes, mobile, reduced, fallback, status, water,
  * backgrounds, page (full page), all (default: idle). `backgrounds` renders the status row on
@@ -103,8 +103,9 @@ for (const scene of scenes) {
     target = null; // full page
   }
 
+  if (flags.target) target = page.locator(flags.target);
   await page.waitForTimeout(wait);
-  const file = join(outDir, `${scene}.png`);
+  const file = join(outDir, `${bgKey && !scene.startsWith('bg-') ? `${scene}-${bgKey.replace('#', '')}` : scene}.png`);
   if (target) await target.screenshot({ path: file });
   else await page.screenshot({ path: file, fullPage: true });
   console.log(`${scene}: renderer=${renderer} -> ${file}`);

@@ -9,18 +9,38 @@
  *   d  = signed distance to the pill silhouette (negative inside).
  *   u  = 1 + d / 0.5: 0 along the pill's centre line, 1 at the silhouette.
  *
- * Glass model. The pill is treated as a slab with a rounded (filleted) edge
- * zone whose width is set by glassThickness. Inside the flat region the
+ * Glass model. The pill is a slab of tinted glass with a rounded (filleted)
+ * edge zone whose width is set by glassThickness. Inside the flat region the
  * normal points at the viewer; through the fillet it rotates until it is
- * tangent to the screen at the silhouette. From that normal we get:
- *   - Fresnel (Schlick), strong only where the normal is tilted, so the edge
- *     zone catches far more light than the centre.
- *   - A reflection vector into a procedural studio: a bright cool softbox
- *     above/in front (follows the pointer), a dark backdrop behind the
- *     camera, and two cool blue side lights that give the end caps their
- *     cyan glints.
- *   - "Edge light": light transported inside the slab exits at the
- *     silhouette, which is why real glass edges glow as thin lines.
+ * tangent to the screen at the silhouette. Light leaving a pixel is the sum
+ * of four separate contributions:
+ *
+ *   1. Environment reflection, weighted by Schlick Fresnel. The environment
+ *      has two parts: explicit studio lights (a cool strip softbox above and
+ *      behind that follows the pointer, a soft fill, two side lights), which
+ *      are added as colour; and the ambient surround, which is assumed to be
+ *      the page the button sits on and is therefore expressed by *letting
+ *      the page show through* (lower alpha) in proportion to F. On a black
+ *      page the edges reflect black and stay glossy-dark; on a white page
+ *      the same edges reflect white and read as bright glass. Nothing in the
+ *      material is intrinsically dark.
+ *   2. Transmission of the page through the tinted body: Beer-Lambert
+ *      attenuation exp(-sigma * thickness), where thickness follows the
+ *      cross-section (full slab at the centre, thinning through the fillet).
+ *      glassOpacity sets sigma so the centre hides that fraction of the
+ *      page; the curved edge is thinner and lets more through. A narrow
+ *      total-internal-reflection band next to the silhouette reflects the
+ *      interior (fire light) instead of transmitting the page.
+ *   3. Emission from the effect inside: fire/water sampled through the
+ *      refracting front surface with chromatic aberration and heat shimmer,
+ *      plus bloom, embers and internal reflections. Dense flames also
+ *      occlude the page so they stay saturated over bright surfaces.
+ *   4. Illumination of the glass by the effect: warm Fresnel rim on the
+ *      lower half and the ends, light scattered in the body (grows with
+ *      thickness), and a faint mirror of the fire on the upper inner face.
+ *
+ * The output is premultiplied: colour = 1 + 3 + 4 (+ explicit lights), and
+ * alpha = 1 - (page seen through reflection + page seen through the body).
  */
 import { NOISE_GLSL } from './noise.glsl';
 
@@ -90,11 +110,12 @@ vec3 aces(vec3 x) {
 // gaussian in direction space, i.e. exp(-|R - L|^2 * k): small k = broad
 // soft light, large k = tight specular source.
 vec3 studio(vec3 R, vec2 pointer, vec3 rimTint) {
-  // Backdrop behind the camera: near black, faintly cool.
-  vec3 col = vec3(0.010, 0.012, 0.018);
+  // Explicit lights only. The ambient surround is the page itself and is
+  // handled through alpha in main(), so there is no backdrop term here.
+  vec3 col = vec3(0.0);
   // Ceiling: broad cool light from above. Gives the upper face its sheen.
   float up = smoothstep(-0.1, 1.0, R.y);
-  col += vec3(0.5, 0.58, 0.72) * up * up * 0.55;
+  col += vec3(0.5, 0.58, 0.72) * up * up * 0.45;
   // Key: a wide strip softbox above and slightly behind the pill, the
   // classic product-shot rim light. Anisotropic (wide in x, thin in y) so it
   // draws a crisp bright line along the top edge. The pointer slides it.
@@ -188,26 +209,46 @@ void main() {
     vec3 V = vec3(0.0, 0.0, 1.0);
     float NdV = max(dot(N, V), 0.0);
 
-    // ---- reflection of the studio ---------------------------------------
-    float F = 0.04 + 0.96 * pow(1.0 - NdV, 5.0);   // Schlick Fresnel
+    // ---- geometry: thickness through the slab ---------------------------
+    // Chord through the glass: full slab thickness on the flat face,
+    // thinning through the fillet to a sliver at the silhouette (never zero:
+    // the rim has real material). The exponent steepens the falloff so the
+    // edge zone visibly clears rather than only the last few pixels.
+    float profile = sqrt(1.0 - v * v);
+    float thickness = mix(0.05, 1.0, pow(profile, 2.2));
+
+    // ---- 1. environment reflection ---------------------------------------
+    float F = 0.04 + 0.96 * pow(1.0 - NdV, 5.0);   // Schlick Fresnel, n ~ 1.5
     vec3 R = reflect(-V, N);
-    vec3 env = studio(R, uPointer, uRimTint);
-    vec3 reflection = env * F * P_REFLECTION * (1.0 + 0.2 * hover);
+    vec3 lights = studio(R, uPointer, uRimTint) * P_REFLECTION * (1.0 + 0.2 * hover);
+    // The surround (the page) reflected at the same Fresnel weight. Slightly
+    // below 1: a surround is never quite as bright as the surface under it.
+    const float AMBIENT_ENV = 0.9;
+    float reflectedPage = F * AMBIENT_ENV;
 
     // Edge light: light guided inside the slab leaves through the silhouette
-    // as a thin bright line. Cool where the environment dominates, orange
-    // where the fire is close.
+    // as a thin bright line. Cool where the environment dominates, tinted by
+    // the status colour.
     float rim = pow(1.0 - NdV, 22.0);
     float upper = 0.25 + 0.75 * smoothstep(-0.4, 0.5, g.y);
-    // Edge light is mostly the cool key light, tinted by the status colour.
     vec3 edgeTint = mix(vec3(0.8, 0.9, 1.0), uRimTint, 0.45);
-    reflection += edgeTint * rim * upper * 3.0 * P_REFLECTION;
+    vec3 edgeLight = edgeTint * rim * upper * 3.0 * P_REFLECTION;
 
-    // ---- fire seen through the curved front surface ---------------------
+    // ---- 2. transmission of the page through the tinted body --------------
+    // Beer-Lambert: glassOpacity is the fraction hidden at full thickness.
+    float sigma = -log(max(1.0 - P_GLASS_OPACITY, 0.005));
+    float transmit = exp(-sigma * thickness);
+    // Total internal reflection band: close to the silhouette the far face
+    // is hit at grazing angles and mirrors the interior instead of passing
+    // the page. Kept narrow and partial.
+    float tir = 0.25 * smoothstep(0.75, 0.98, v);
+
+    // ---- 3. emission from the effect inside -------------------------------
     // Refraction through the thick rounded edge. Horizontally the view bends
-    // inward, so the fire wraps up the end walls; vertically the bottom
-    // fillet acts as a lens on the bright fuel line just below it (the fire
-    // buffer extends below the pill for this). Offsets are in pill units.
+    // inward, so the effect wraps up the end walls; vertically the bottom
+    // fillet acts as a lens on the bright base just below it (the effect
+    // buffer extends below the pill for this). Offsets are in pill units and
+    // grow with the surface tilt, i.e. toward the curved portions.
     vec2 refr = vec2(-N.x, 0.55 * N.y) * 0.11 * P_REFRACTION * P_GLASS_THICKNESS;
     // Heat shimmer: hot air above the flames wobbles the view slightly.
     float shimAmt = 0.006 * P_SHIMMER * smoothstep(0.15, 0.45, fy) * (1.0 - smoothstep(0.6, 1.0, fy));
@@ -220,34 +261,35 @@ void main() {
     vec4 fb = texture(uFire, baseUv - ca);
     vec4 fire = vec4(fr.r, fg.g, fb.b, fg.a);
     fire.rgb *= uDecode;
-
-    // ---- fire lighting the glass ----------------------------------------
-    // Bloom / internal glow: scattered light inside the slab around the
-    // tongues. Kept subtle: photographic, not neon.
+    // Bloom: scattered light inside the slab around the tongues. Subtle.
     vec3 bloom = glow * 0.2 * P_BLOOM * (1.0 + 0.3 * hover);
-    // Light bleeding into the dark body above the flames, fading upward.
-    vec3 bleed = fireLight * 0.10 * exp(-fy * 4.0) * (1.0 + 0.4 * hover + 0.6 * uPulse);
-    // The fillet reflects the fire on the inside: orange Fresnel rim along
-    // the bottom and up the ends, replacing the cool environment there.
+    vec3 spark = embers(p, fy, t, P_PARTICLES, uEmberColor) * (1.0 + 0.3 * hover);
+    // Dense flame is not transparent: it hides the page behind it, which is
+    // what keeps the effect saturated over a white surface.
+    float occlusion = 0.85 * fire.a;
+
+    // ---- 4. the effect illuminating the glass -----------------------------
+    // In-scatter in the tinted body above the flames: more glass, more glow.
+    vec3 bleed = fireLight * 0.10 * exp(-fy * 4.0) * (0.5 + 0.5 * thickness)
+               * (1.0 + 0.4 * hover + 0.6 * uPulse);
+    // The fillet reflects the fire on the inside: warm Fresnel rim along the
+    // bottom and up the ends, on top of the cool environment reflection.
     float fireRim = pow(1.0 - NdV, 3.0) * (1.0 - upper * 0.6);
     vec3 warmRim = fireLight * fireRim * 2.6 * P_REFLECTION;
     // Faint internal reflection of the fire on the upper inner surface.
     vec3 innerRefl = texture(uBloom, vec2(fireUv.x, 1.0 - fireUv.y)).rgb * uDecode
                    * 0.05 * smoothstep(0.35, 1.0, fy) * P_REFLECTION;
+    // What the TIR band mirrors: the fire-lit interior.
+    vec3 tirLight = (fireLight * 0.6 + innerRefl * 2.0) * tir;
 
-    // ---- embers -----------------------------------------------------------
-    vec3 spark = embers(p, fy, t, P_PARTICLES, uEmberColor) * (1.0 + 0.3 * hover);
-
-    // ---- transmission ---------------------------------------------------
-    vec3 body = vec3(0.010, 0.011, 0.014);
-    float bodyA = P_GLASS_OPACITY;
-
-    float T = 1.0 - F;   // what gets through the front surface
-    inside = body * bodyA * T
-           + (fire.rgb + bloom + bleed + innerRefl + spark) * T
-           + warmRim + reflection;
-    insideA = bodyA + (1.0 - bodyA) * F;
-    insideA = insideA + fire.a * (1.0 - insideA);
+    // ---- assemble ---------------------------------------------------------
+    float T = 1.0 - F;   // enters the glass
+    vec3 emission = fire.rgb + bloom + spark + bleed + innerRefl + tirLight;
+    inside = F * lights + T * emission + warmRim + edgeLight;
+    // Page visible through this pixel: via the body (attenuated, minus the
+    // TIR band and the flame's own occlusion) and via ambient reflection.
+    float throughBody = T * transmit * (1.0 - tir) * (1.0 - occlusion);
+    insideA = 1.0 - clamp(throughBody + reflectedPage, 0.0, 1.0);
   }
 
   // =====================================================================
