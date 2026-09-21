@@ -222,7 +222,7 @@ below.
 | `level` | `level` | 1.0 | 0–2.5 | Flame height or water level |
 | `turbulence` | `turbulence` | 1.0 | 0–3 | Curl of the flames or wave amplitude |
 | `speed` | `speed` | 1.0 | 0–4 | Time scale of the effect |
-| `glass-opacity` | `glassOpacity` | 0.82 | 0–1 | Darkness of the glass body over the page |
+| `glass-opacity` | `glassOpacity` | 0.86 | 0–1 | Darkness of the glass body over the page |
 | `glass-thickness` | `glassThickness` | 1.0 | 0.2–3 | Curvature and width of the rounded edge zone |
 | `refraction` | `refraction` | 1.0 | 0–3 | Distortion of the effect through the curved edge |
 | `bloom` | `bloom` | 1.0 | 0–3 | Bloom, light leak and floor glow |
@@ -303,8 +303,15 @@ height so the look is identical at any size:
    - *Illumination of the glass by the effect*: warm Fresnel rim along the
      bottom and ends, in-scatter that grows with thickness, and a faint
      mirror of the fire on the upper inner face.
-   Outside the pill: light leak at the silhouette and a mirrored floor
-   reflection. ACES tonemap, sRGB encode.
+   Outside the pill: light leak at the silhouette, a mirrored floor
+   reflection and a soft contact shadow. ACES tonemap, sRGB encode.
+
+   Compositing note: the browser blends the premultiplied canvas over the
+   page in sRGB-encoded space, while the shader works in linear light. Alpha
+   is therefore not the linear transmission directly; it is chosen so that a
+   white page composites to exactly `encode(light + transmission)`, which
+   keeps the pill identical on black and physically right on white instead
+   of far too dark.
 
 Shader sources are in `src/shaders/` and are commented for modification.
 

@@ -40,7 +40,7 @@ export const PARAM_DEFS: readonly ParamDef[] = [
   { name: 'level', attr: 'level', def: 1, min: 0, max: 2.5, label: 'How high the effect reaches: flame height or water level' },
   { name: 'turbulence', attr: 'turbulence', def: 1, min: 0, max: 3, label: 'Turbulence: curl of the flames or wave amplitude' },
   { name: 'speed', attr: 'speed', def: 1, min: 0, max: 4, label: 'Time scale of the effect' },
-  { name: 'glassOpacity', attr: 'glass-opacity', def: 0.82, min: 0, max: 1, label: 'Darkness of the glass body' },
+  { name: 'glassOpacity', attr: 'glass-opacity', def: 0.86, min: 0, max: 1, label: 'Darkness of the glass body' },
   { name: 'glassThickness', attr: 'glass-thickness', def: 1, min: 0.2, max: 3, label: 'Curvature and width of the edge zone' },
   { name: 'refraction', attr: 'refraction', def: 1, min: 0, max: 3, label: 'Distortion of the effect through the curved edge' },
   { name: 'bloom', attr: 'bloom', def: 1, min: 0, max: 3, label: 'Bloom and light leak' },

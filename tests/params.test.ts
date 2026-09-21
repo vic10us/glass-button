@@ -6,7 +6,7 @@ describe('params', () => {
     const d = defaults();
     expect(Object.keys(d)).toHaveLength(11);
     expect(PARAM_ATTRS).toHaveLength(11);
-    expect(d.glassOpacity).toBe(0.82);
+    expect(d.glassOpacity).toBe(0.86);
     expect(d.intensity).toBe(1);
   });
 

@@ -78,15 +78,15 @@ describe('parameters', () => {
     expect(Object.keys(el.params)).toHaveLength(11);
     el.params = { speed: 2 };
     expect(el.speed).toBe(2);
-    expect(el.glassOpacity).toBe(0.82);
+    expect(el.glassOpacity).toBe(0.86);
     expect(el.getAttribute('speed')).toBe('2');
   });
 
   it('exposes a defensive copy of the defaults', () => {
     const d = GlassButton.defaults;
-    expect(d.glassOpacity).toBe(0.82);
+    expect(d.glassOpacity).toBe(0.86);
     d.glassOpacity = 0;
-    expect(GlassButton.defaults.glassOpacity).toBe(0.82);
+    expect(GlassButton.defaults.glassOpacity).toBe(0.86);
   });
 });
 

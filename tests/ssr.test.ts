@@ -13,6 +13,6 @@ describe('import without a DOM', () => {
     const mod = await import('../src/glass-button');
     expect(typeof mod.GlassButton).toBe('function');
     expect(mod.STATUS_NAMES).toContain('healthy');
-    expect(mod.GlassButton.defaults.glassOpacity).toBe(0.82);
+    expect(mod.GlassButton.defaults.glassOpacity).toBe(0.86);
   });
 });

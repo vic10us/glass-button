@@ -98,6 +98,14 @@ vec3 linearToSrgb(vec3 c) {
   return mix(12.92 * c, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, c));
 }
 
+// Encoded-space weight of the page behind a pixel: the brightness a white
+// page adds on top of our own tonemapped light L (linear), measured after
+// sRGB encoding. Luma-weighted because alpha is a single channel.
+float pageWeight(vec3 L, vec3 encL, float through) {
+  vec3 withPage = linearToSrgb(min(L + vec3(through), vec3(1.0)));
+  return clamp(dot(withPage - encL, vec3(0.2126, 0.7152, 0.0722)), 0.0, 1.0);
+}
+
 // ACES filmic curve (Narkowicz fit). Keeps the fire's hottest values from
 // clipping to flat white and gives the highlights a photographic roll-off.
 vec3 aces(vec3 x) {
@@ -190,7 +198,7 @@ void main() {
   // Inside the pill
   // =====================================================================
   vec3 inside = vec3(0.0);
-  float insideA = 0.0;
+  float throughIn = 0.0;   // linear fraction of the page seen through this pixel
   if (mask > 0.0) {
     // ---- surface normal from the cross-section profile -----------------
     vec2 g = pillGrad(p, halfW);                 // outward, in the screen plane
@@ -266,7 +274,7 @@ void main() {
     vec3 spark = embers(p, fy, t, P_PARTICLES, uEmberColor) * (1.0 + 0.3 * hover);
     // Dense flame is not transparent: it hides the page behind it, which is
     // what keeps the effect saturated over a white surface.
-    float occlusion = 0.85 * fire.a;
+    float occlusion = min(1.0, 1.1 * fire.a);
 
     // ---- 4. the effect illuminating the glass -----------------------------
     // In-scatter in the tinted body above the flames: more glass, more glow.
@@ -289,13 +297,14 @@ void main() {
     // Page visible through this pixel: via the body (attenuated, minus the
     // TIR band and the flame's own occlusion) and via ambient reflection.
     float throughBody = T * transmit * (1.0 - tir) * (1.0 - occlusion);
-    insideA = 1.0 - clamp(throughBody + reflectedPage, 0.0, 1.0);
+    throughIn = clamp(throughBody + reflectedPage, 0.0, 1.0);
   }
 
   // =====================================================================
   // Outside the pill: light leak at the silhouette and the floor glow
   // =====================================================================
   vec3 outside = vec3(0.0);
+  float throughOut = 1.0;  // the page, minus the pill's contact shadow
   if (mask < 1.0) {
     // Light leaking through the edge into the air right beside it.
     vec2 edgeUv = clamp(fireUv, 0.0, 1.0);
@@ -324,25 +333,39 @@ void main() {
     vec2 pf = vec2(p.x / (halfW + 0.05), below / 0.42);
     vec3 pool = avg * exp(-dot(pf, pf) * 2.4) * 0.09 * smoothstep(0.0, 0.05, below);
     outside = (leak + floorRefl + pool) * (1.0 + 0.35 * hover + 0.8 * uPulse) * P_BLOOM;
+    // Contact shadow: a thick object resting on a surface darkens the
+    // surface just beneath it. Modelled as a blurred copy of the pill
+    // shifted down, strongest right under the bottom edge and fading with
+    // distance. Invisible on black; on a light page it grounds the pill and
+    // gives the glow something to tint.
+    float shadowSdf = pillSdf(p - vec2(0.0, 0.10), halfW);
+    float ao = 0.45 * (1.0 - smoothstep(-0.02, 0.42, shadowSdf)) * smoothstep(0.12, -0.08, fy);
+    throughOut = 1.0 - ao;
     // Fade to nothing before the canvas edge so the glow never shows a hard
     // rectangular cut, whatever padding the element chose.
     vec2 edgePx = min(gl_FragCoord.xy, uRes - gl_FragCoord.xy) / uPillSize.y;
     float edgeFade = smoothstep(0.0, 0.35, min(edgePx.x, edgePx.y));
     outside *= edgeFade;
+    throughOut = 1.0 - ao * edgeFade;
   }
 
   // ---- combine ------------------------------------------------------------
-  vec3 inCol = linearToSrgb(aces(inside));
-  vec3 outCol = linearToSrgb(aces(outside));
-  float outA = max(outCol.r, max(outCol.g, outCol.b));   // additive glow over the page
-  // Soft knee: sRGB encoding lifts near-zero glow to a few percent, which
-  // reads as a grey haze rectangle on light pages. Fade the faintest glow
-  // out entirely (and its colour with it, keeping premultiplication intact).
-  float knee = smoothstep(0.0, 0.14, outA);
-  outCol *= knee;
-  outA *= knee;
-  vec3 rgb = inCol * mask + outCol * (1.0 - mask);
-  float alpha = insideA * mask + outA * (1.0 - mask);
+  // The browser composites this premultiplied canvas in sRGB-encoded space:
+  //   displayed = rgb + page_encoded * (1 - alpha).
+  // Our light L is linear. The page term must therefore be expressed in
+  // encoded space too, otherwise a body passing 17% of the page's light
+  // would show 17% of its *encoded* value (about 3% of its light) and light
+  // pages come out far too dark. Choosing alpha so that a white page gives
+  // exactly encode(L + through) makes the blend right on white, identical to
+  // before on black, and a sensible interpolation in between.
+  vec3 Lin = aces(inside);
+  vec3 Lout = aces(outside);
+  vec3 encIn = linearToSrgb(Lin);
+  vec3 encOut = linearToSrgb(Lout);
+  float alphaIn = 1.0 - pageWeight(Lin, encIn, throughIn);
+  float alphaOut = 1.0 - pageWeight(Lout, encOut, throughOut);
+  vec3 rgb = encIn * mask + encOut * (1.0 - mask);
+  float alpha = alphaIn * mask + alphaOut * (1.0 - mask);
   fragColor = vec4(rgb, alpha);
 }
 `;
