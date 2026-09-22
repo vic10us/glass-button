@@ -156,6 +156,29 @@ export function isStatus(v: unknown): v is StatusName {
   return typeof v === 'string' && (STATUS_NAMES as readonly string[]).includes(v);
 }
 
+/** Linear HDR -> display hex, through the same filmic curve the shader uses. */
+export function toCssColor(c: RGB, exposure = 1): string {
+  const aces = (x: number) => Math.min(1, Math.max(0, (x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14)));
+  const enc = (x: number) => (x <= 0.0031308 ? 12.92 * x : 1.055 * Math.pow(x, 1 / 2.4) - 0.055);
+  const hex = (x: number) => Math.round(enc(aces(x * exposure)) * 255).toString(16).padStart(2, '0');
+  return `#${hex(c[0])}${hex(c[1])}${hex(c[2])}`;
+}
+
+/**
+ * CSS custom properties describing a palette, set on the host so the CSS
+ * fallback (and consumers' own styles) can follow the status/effect colours.
+ */
+export function paletteCssVars(p: Palette): Record<string, string> {
+  return {
+    '--gb-fx-deep': toCssColor(p.ramp[0], 1.4),
+    '--gb-fx-mid': toCssColor(p.ramp[1], 1.1),
+    '--gb-fx-light': toCssColor(p.ramp[2], 0.9),
+    '--gb-fx-bright': toCssColor(p.ramp[3], 0.8),
+    '--gb-fx-hi': toCssColor(p.ramp[4], 0.7),
+    '--gb-fx-rim': toCssColor(p.rim, 1.6),
+  };
+}
+
 /** Flatten a palette into the 18 floats the renderer uploads (5 ramp + rim). */
 export function flattenPalette(p: Palette, out: Float32Array = new Float32Array(18)): Float32Array {
   for (let i = 0; i < 5; i++) {

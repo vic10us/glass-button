@@ -295,3 +295,19 @@ describe('effect', () => {
     expect(el.style.getPropertyValue('--gb-icon-color')).toBe('#ffb864');
   });
 });
+
+describe('palette CSS variables (drive the CSS fallback)', () => {
+  it('publishes tonemapped ramp and rim colours and updates them with status', () => {
+    const el = mount();
+    const before = el.style.getPropertyValue('--gb-fx-mid');
+    expect(before).toMatch(/^#[0-9a-f]{6}$/);
+    expect(el.style.getPropertyValue('--gb-fx-rim')).toMatch(/^#[0-9a-f]{6}$/);
+    el.status = 'healthy';
+    const after = el.style.getPropertyValue('--gb-fx-mid');
+    expect(after).not.toBe(before);
+    // Healthy is green: G dominates.
+    const [r, g, b] = [after.slice(1, 3), after.slice(3, 5), after.slice(5, 7)].map((h) => parseInt(h, 16));
+    expect(g).toBeGreaterThan(r);
+    expect(g).toBeGreaterThan(b);
+  });
+});

@@ -139,8 +139,13 @@
 
   <h2>CSS fallback</h2>
   <p>When WebGL2 is unavailable the element sets <code>data-renderer="css"</code> and the shadow stylesheet paints a simplified glass and glow. Setting that attribute yourself forces the fallback, as here.</p>
-  <section id="fallback" class="stage">
+  <section id="fallback" class="grid">
     <glass-button class="l" data-renderer="css">Take Action →</glass-button>
+    <glass-button class="l" data-renderer="css" effect="water">Dive In →</glass-button>
+    <glass-button class="l" data-renderer="css" status="healthy">Healthy</glass-button>
+    <glass-button class="l" data-renderer="css" status="warning">Warning</glass-button>
+    <glass-button class="l" data-renderer="css" status="trouble">Trouble</glass-button>
+    <glass-button class="l" data-renderer="css" status="unknown">Unknown</glass-button>
   </section>
 
   <h2>Usage</h2>

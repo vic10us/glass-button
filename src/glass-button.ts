@@ -22,6 +22,7 @@ import {
   flattenPalette,
   isEffect,
   isStatus,
+  paletteCssVars,
 } from './status';
 import { STYLES } from './styles';
 
@@ -253,6 +254,9 @@ export class GlassButton extends BaseElement {
   // ------------------------------------------------------------------ lifecycle
 
   connectedCallback(): void {
+    // Custom element constructors may not touch attributes, so the palette
+    // variables (inline style) are published here, before first paint.
+    if (!this.style.getPropertyValue('--gb-fx-mid')) this.#applyStatus();
     if (!this.hasAttribute('data-renderer')) this.#attachRenderer();
     this.#button.disabled = this.disabled;
 
@@ -369,6 +373,7 @@ export class GlassButton extends BaseElement {
       this.#paletteSettled = true;
     }
     this.style.setProperty('--gb-icon-color', palette.icon);
+    for (const [k, v] of Object.entries(paletteCssVars(palette))) this.style.setProperty(k, v);
     this.#srStatus.textContent = preset ? `Status: ${preset.label}` : '';
     this.#recomputeParams();
     this.#renderIcon();
@@ -689,12 +694,34 @@ export class GlassButton extends BaseElement {
   }
 }
 
+/** Register the palette custom properties so the CSS fallback can crossfade them. */
+function registerPaletteProperties(): void {
+  const css = (globalThis as { CSS?: { registerProperty?: (d: PropertyDefinition) => void } }).CSS;
+  if (!css?.registerProperty) return;
+  const initial: Record<string, string> = {
+    '--gb-fx-deep': '#3a0a00',
+    '--gb-fx-mid': '#c93a08',
+    '--gb-fx-light': '#f07a1c',
+    '--gb-fx-bright': '#ffc451',
+    '--gb-fx-hi': '#fff1d6',
+    '--gb-fx-rim': '#7fb4ff',
+  };
+  for (const [name, initialValue] of Object.entries(initial)) {
+    try {
+      css.registerProperty({ name, syntax: '<color>', inherits: true, initialValue });
+    } catch {
+      /* already registered */
+    }
+  }
+}
+
 /** Register the element under a tag name (default `glass-button`). Safe to call twice. */
 export function defineGlassButton(tag = 'glass-button'): void {
   if (typeof customElements === 'undefined') return;
   if (!customElements.get(tag)) customElements.define(tag, GlassButton);
 }
 
+registerPaletteProperties();
 defineGlassButton();
 
 declare global {

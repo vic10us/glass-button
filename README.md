@@ -287,8 +287,12 @@ below.
   state is easing. The still design (glass, fire, glow) remains.
 - **Offscreen or hidden tab**: the frame loop pauses.
 - **No WebGL2**: the host gets `data-renderer="css"` and a simplified CSS
-  glass with a static warm glow. Setting that attribute yourself forces the
-  fallback, which is handy for testing.
+  glass built from the palette variables the element publishes
+  (`--gb-fx-deep`, `-mid`, `-light`, `-bright`, `-hi`, `-rim`, tonemapped
+  from the current status/effect palette). It follows status, effect, hover
+  and press, crossfades on change, and is available to your own styles too.
+  Setting the attribute yourself forces the fallback, which is handy for
+  testing.
 
 ## Rendering
 
