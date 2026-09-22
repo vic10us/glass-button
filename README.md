@@ -1,5 +1,15 @@
 # glass-button
 
+[![npm version](https://img.shields.io/npm/v/%40vic10us%2Fglass-button?logo=npm&label=npm)](https://www.npmjs.com/package/@vic10us/glass-button)
+[![npm downloads](https://img.shields.io/npm/dm/%40vic10us%2Fglass-button?logo=npm&label=downloads)](https://www.npmjs.com/package/@vic10us/glass-button)
+[![CI](https://github.com/vic10us/glass-button/actions/workflows/ci.yml/badge.svg)](https://github.com/vic10us/glass-button/actions/workflows/ci.yml)
+[![Demo deploy](https://github.com/vic10us/glass-button/actions/workflows/pages.yml/badge.svg)](https://vic10us.github.io/glass-button/)
+[![Release](https://github.com/vic10us/glass-button/actions/workflows/release.yml/badge.svg)](https://github.com/vic10us/glass-button/releases)
+[![minzipped size](https://img.shields.io/bundlejs/size/%40vic10us%2Fglass-button?label=minzipped)](https://bundlejs.com/?q=%40vic10us%2Fglass-button)
+[![types](https://img.shields.io/npm/types/%40vic10us%2Fglass-button)](https://github.com/vic10us/glass-button/blob/main/dist/glass-button.d.ts)
+![dependencies](https://img.shields.io/badge/dependencies-0-2ea44f)
+[![license](https://img.shields.io/github/license/vic10us/glass-button)](LICENSE)
+
 A framework-agnostic `<glass-button>` custom element: a thick, dark,
 translucent glass pill with a procedural effect living inside its lower
 third, fire or water, rendered in real time with WebGL2. The effect lights
