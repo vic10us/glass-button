@@ -382,6 +382,18 @@ Enter to update every button. The URL mirrors it as `?cfg=…`, so a bookmark
 or a shared link reproduces a configuration exactly, and named presets can be
 saved in the browser and switched between for comparison.
 
+### Releasing
+
+```bash
+npm version minor        # or patch / major: bumps package.json, commits, tags vX.Y.Z
+git push --follow-tags   # the tag triggers .github/workflows/release.yml
+```
+
+The release workflow runs the tests, builds, publishes to npm with provenance
+and creates a GitHub release with generated notes. It authenticates to npm
+through trusted publishing (configure the repository and workflow on
+npmjs.com) or an `NPM_TOKEN` repository secret.
+
 `demo/index.html` (serve the repo root, e.g. `npx serve .`) is the same
 page that GitHub Pages publishes from `main` via
 `.github/workflows/pages.yml`. Use the background switcher (bottom left) to

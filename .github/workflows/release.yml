@@ -1,0 +1,51 @@
+name: Release
+
+# Pushing a version tag (v1.2.3) builds and tests the package, publishes it to
+# npm and creates a GitHub release with generated notes. Create the tag with
+# `npm version <patch|minor|major>` followed by `git push --follow-tags`.
+#
+# npm authentication: either configure npm "trusted publishing" for this
+# repository and workflow on npmjs.com (no secret needed; uses the OIDC token
+# below), or add an automation token as the NPM_TOKEN repository secret.
+
+on:
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: write   # create the release
+  id-token: write   # npm provenance / trusted publishing
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    environment: npm
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          registry-url: https://registry.npmjs.org
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - name: Check tag matches package.json
+        run: |
+          PKG="v$(node -p "require('./package.json').version")"
+          if [ "$PKG" != "${GITHUB_REF_NAME}" ]; then
+            echo "Tag ${GITHUB_REF_NAME} does not match package.json version ${PKG}" >&2
+            exit 1
+          fi
+      - name: Publish to npm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --provenance --access public
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            --title "${GITHUB_REF_NAME}" \
+            --generate-notes \
+            --verify-tag
