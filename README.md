@@ -357,10 +357,17 @@ npm run shot -- idle --bg=white    # any scene on a preset key or #hex backgroun
 npm run shot -- page --bg=paper    # full demo page
 ```
 
-The demo has a background switcher (bottom left) with dark, light, gradient,
-mesh and paper presets plus a custom colour, so you can judge the glass and
-glow against the pages it will live on. The choice persists and is
-addressable as `?bg=<key|#hex>`.
+The demo has a background switcher (bottom left) with the material test set
+(black, #181818, #666, #B0B0B0, #E8E8E8, white), a colourful mesh, a
+photographic backdrop and paper, plus a custom colour. The choice persists
+and is addressable as `?bg=<key|#hex>`.
+
+The tuning panel's Configuration box lists everything that differs from the
+defaults as attributes (status, effect, parameters and `etch-*` for the
+engraving). It is editable: paste or type `name="value"` pairs and press
+Enter to update every button. The URL mirrors it as `?cfg=…`, so a bookmark
+or a shared link reproduces a configuration exactly, and named presets can be
+saved in the browser and switched between for comparison.
 
 `demo/index.html` (serve the repo root, e.g. `npx serve .`) is the same
 page that GitHub Pages publishes from `main` via

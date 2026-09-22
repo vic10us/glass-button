@@ -52,6 +52,14 @@
   .panel .actions { display: flex; gap: 8px; margin-top: 12px; }
   .panel .actions button { flex: 1; }
   .panel pre { margin: 10px 0 0; padding: 10px 12px; font-size: 11px; white-space: pre-wrap; }
+  .panel .hint { font-size: 11px; color: #8e9ab0; margin: 0 0 8px; }
+  .panel textarea { width: 100%; box-sizing: border-box; resize: vertical; font: 11px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; color: #dfe6f3; background: #0e1118; border: 1px solid #262d3d; border-radius: 8px; padding: 8px 10px; }
+  .panel textarea:focus { outline: 1px solid #f28a2e; }
+  .panel .check { display: flex; gap: 8px; align-items: center; color: #c9d4e8; margin-top: 8px; font-size: 12px; }
+  .panel .error { margin-top: 8px; color: #ff8a70; font-size: 11px; }
+  .panel .preset-row { display: flex; gap: 6px; margin-top: 8px; }
+  .panel .preset-row input, .panel .preset-row select { flex: 1; min-width: 0; font: inherit; color: #dfe6f3; background: #0e1118; border: 1px solid #262d3d; border-radius: 8px; padding: 6px 8px; }
+  .panel .preset-row button { flex: none; padding: 6px 10px; }
   .panel-toggle { position: fixed; right: 16px; top: 16px; z-index: 11; display: none; }
   @media (max-width: 900px) {
     .panel { display: none; }
@@ -172,11 +180,26 @@
   <div id="etch-params"></div>
   <h3>Parameters</h3>
   <div id="params"></div>
+  <h3>Configuration</h3>
+  <p class="hint">Everything that differs from the defaults, as attributes. Edit and press Enter (or Apply) to update every button. <code>etch-*</code> entries map to the dev-only <code>etch</code> property. The URL tracks this, so bookmark or share it to compare settings.</p>
+  <textarea id="config" rows="4" spellcheck="false" aria-label="Configuration attributes"></textarea>
   <div class="actions">
+    <button class="ui" id="apply">Apply</button>
+    <button class="ui" id="copy">Copy</button>
     <button class="ui" id="reset">Reset</button>
-    <button class="ui" id="copy">Copy attributes</button>
   </div>
-  <pre id="attrs"></pre>
+  <label class="check"><input type="checkbox" id="show-all" /> Show all values, including defaults</label>
+  <div id="config-error" class="error" hidden></div>
+  <h3>Presets</h3>
+  <div class="preset-row">
+    <input id="preset-name" type="text" placeholder="name" aria-label="Preset name" />
+    <button class="ui" id="preset-save">Save</button>
+  </div>
+  <div class="preset-row">
+    <select id="preset-list" aria-label="Saved presets"><option value="">saved presets…</option></select>
+    <button class="ui" id="preset-load">Load</button>
+    <button class="ui" id="preset-delete" title="Delete selected">✕</button>
+  </div>
 </aside>
 
 <script type="module">
@@ -255,12 +278,6 @@
       bubbles: true, clientX: r.left + r.width * 0.3, clientY: r.top + r.height * 0.4,
     }));
   });
-  document.getElementById('hero-status').addEventListener('change', (e) => {
-    hero.status = e.target.value || null;
-  });
-  document.getElementById('hero-effect').addEventListener('change', (e) => {
-    hero.effect = e.target.value;
-  });
   document.getElementById('disabled').addEventListener('change', (e) => {
     hero.disabled = e.target.checked;
   });
@@ -268,85 +285,200 @@
     document.getElementById('reduced-button').reducedMotion = e.target.checked ? true : 'auto';
   });
 
-  // ---- tuning panel ------------------------------------------------------
+  // ---- configuration state -------------------------------------------------
+  // One state object drives the sliders, the selects, the buttons on the page,
+  // the editable attribute string, the URL (?cfg=) and the saved presets.
+  // Numeric parameters and engraving settings apply to every button on the
+  // page; status and effect apply to the hero (the other buttons demonstrate
+  // fixed statuses/effects).
   const defaults = GlassButton.defaults;
   const attrOf = {
     intensity: 'intensity', level: 'level', turbulence: 'turbulence', speed: 'speed',
     glassOpacity: 'glass-opacity', glassThickness: 'glass-thickness', refraction: 'refraction',
-    bloom: 'bloom', reflection: 'reflection', particles: 'particles',
-    shimmer: 'shimmer',
+    bloom: 'bloom', reflection: 'reflection', particles: 'particles', shimmer: 'shimmer',
   };
+  const paramOfAttr = Object.fromEntries(Object.entries(attrOf).map(([k, v]) => [v, k]));
   const ranges = {
     intensity: [0, 3], level: [0, 2.5], turbulence: [0, 3], speed: [0, 4], glassOpacity: [0, 1],
     glassThickness: [0.2, 3], refraction: [0, 3], bloom: [0, 3], reflection: [0, 3],
     particles: [0, 4], shimmer: [0, 3],
   };
-  const paramsRoot = document.getElementById('params');
-  const attrsOut = document.getElementById('attrs');
-  const inputs = {};
+  const etchDefaults = { ...hero.etch };
+  const etchDefs = [['mode', 0, 2, 1], ['depth', 0, 0.04, 0.0005], ['roughness', 0, 1, 0.01], ['bevel', 0, 2.5, 0.01], ['interaction', 0, 2.5, 0.01]];
+  const STATUSES = ['healthy', 'warning', 'trouble', 'unknown'];
 
-  function currentAttrs() {
-    return Object.keys(defaults)
-      .filter((k) => Math.abs(hero[k] - defaults[k]) > 1e-9)
-      .map((k) => `${attrOf[k]}="${hero[k]}"`)
-      .join(' ');
-  }
-  function refreshAttrs() {
-    attrsOut.textContent = currentAttrs() || '(all defaults)';
-  }
-  function apply(name, value) {
-    for (const el of all()) el[name] = value;
-    inputs[name].value.textContent = Number(value).toFixed(2);
-    refreshAttrs();
-  }
-  for (const name of Object.keys(defaults)) {
-    const [min, max] = ranges[name];
-    const wrap = document.createElement('div');
-    wrap.className = 'param';
-    const label = document.createElement('span'); label.className = 'name'; label.textContent = attrOf[name];
-    const val = document.createElement('span'); val.className = 'val'; val.textContent = defaults[name].toFixed(2);
-    const input = document.createElement('input');
-    input.type = 'range'; input.min = min; input.max = max; input.step = 0.01; input.value = defaults[name];
-    input.setAttribute('aria-label', attrOf[name]);
-    input.addEventListener('input', () => apply(name, Number(input.value)));
-    wrap.append(label, val, input);
-    paramsRoot.append(wrap);
-    inputs[name] = { input, value: val };
-  }
-  document.getElementById('reset').addEventListener('click', () => {
-    for (const name of Object.keys(defaults)) {
-      inputs[name].input.value = defaults[name];
-      apply(name, defaults[name]);
+  const state = {
+    params: { ...defaults },
+    etch: { ...etchDefaults },
+    status: hero.status,
+    effect: hero.effect,
+  };
+  const fmt = (v, digits = 3) => String(Number(Number(v).toFixed(digits)));
+
+  // ---- serialise <-> attribute string
+  function toAttrs(includeDefaults = false) {
+    const parts = [];
+    if (state.status || includeDefaults) parts.push(`status="${state.status ?? ''}"`);
+    if (state.effect !== 'fire' || includeDefaults) parts.push(`effect="${state.effect}"`);
+    for (const k of Object.keys(defaults)) {
+      if (includeDefaults || Math.abs(state.params[k] - defaults[k]) > 1e-9) parts.push(`${attrOf[k]}="${fmt(state.params[k])}"`);
     }
+    for (const [k] of etchDefs) {
+      if (includeDefaults || Math.abs(state.etch[k] - etchDefaults[k]) > 1e-9) parts.push(`etch-${k}="${fmt(state.etch[k], 4)}"`);
+    }
+    return parts.join(' ');
+  }
+  // Accepts name="value", name=value, name: value, comma/space/newline separated.
+  function parseAttrs(text) {
+    const next = { params: { ...defaults }, etch: { ...etchDefaults }, status: null, effect: 'fire' };
+    const re = /([a-z][a-z-]*)\s*[=:]\s*(?:"([^"]*)"|'([^']*)'|([^\s,;]+))/gi;
+    const unknown = [];
+    let m;
+    while ((m = re.exec(text))) {
+      const key = m[1].toLowerCase();
+      const raw = m[2] ?? m[3] ?? m[4] ?? '';
+      if (key === 'status') { next.status = STATUSES.includes(raw) ? raw : null; continue; }
+      if (key === 'effect') { next.effect = raw === 'water' ? 'water' : 'fire'; continue; }
+      if (key.startsWith('etch-')) {
+        const ek = key.slice(5);
+        if (ek in etchDefaults) { const n = Number(raw); if (Number.isFinite(n)) next.etch[ek] = ek === 'mode' ? Math.max(0, Math.min(2, Math.round(n))) : n; }
+        else unknown.push(key);
+        continue;
+      }
+      const pk = paramOfAttr[key];
+      if (!pk) { unknown.push(key); continue; }
+      const n = Number(raw);
+      if (Number.isFinite(n)) { const [lo, hi] = ranges[pk]; next.params[pk] = Math.min(hi, Math.max(lo, n)); }
+    }
+    return { next, unknown };
+  }
+
+  // ---- apply state to the page
+  function applyState() {
+    for (const el of all()) {
+      el.params = state.params;
+      el.etch = state.etch;
+    }
+    hero.status = state.status;
+    hero.effect = state.effect;
+  }
+
+  // ---- widgets
+  const paramsRoot = document.getElementById('params');
+  const etchRoot = document.getElementById('etch-params');
+  const configBox = document.getElementById('config');
+  const showAll = document.getElementById('show-all');
+  const errorBox = document.getElementById('config-error');
+  const inputs = {};
+  const etchInputs = {};
+  const statusSelect = document.getElementById('hero-status');
+  const effectSelect = document.getElementById('hero-effect');
+  const etchModeSelect = document.getElementById('etch-mode');
+
+  function slider(root, key, label, [min, max, step], get, set, digits) {
+    const wrap = document.createElement('div'); wrap.className = 'param';
+    const name = document.createElement('span'); name.className = 'name'; name.textContent = label;
+    const val = document.createElement('span'); val.className = 'val';
+    const input = document.createElement('input');
+    input.type = 'range'; input.min = min; input.max = max; input.step = step; input.setAttribute('aria-label', label);
+    input.addEventListener('input', () => { set(Number(input.value)); commit(); });
+    wrap.append(name, val, input); root.append(wrap);
+    return { input, val, refresh() { input.value = get(); val.textContent = Number(get()).toFixed(digits); } };
+  }
+  for (const k of Object.keys(defaults)) {
+    inputs[k] = slider(paramsRoot, k, attrOf[k], [...ranges[k], 0.01], () => state.params[k], (v) => { state.params[k] = v; }, 2);
+  }
+  for (const [k, min, max, step] of etchDefs) {
+    if (k === 'mode') continue;
+    etchInputs[k] = slider(etchRoot, k, k, [min, max, step], () => state.etch[k], (v) => { state.etch[k] = v; }, k === 'depth' ? 4 : 2);
+  }
+  etchModeSelect.addEventListener('change', () => { state.etch.mode = Number(etchModeSelect.value); commit(); });
+  statusSelect.addEventListener('change', () => { state.status = statusSelect.value || null; commit(); });
+  effectSelect.addEventListener('change', () => { state.effect = effectSelect.value; commit(); });
+
+  // ---- render widgets, config text and URL from state
+  function render() {
+    for (const k of Object.keys(inputs)) inputs[k].refresh();
+    for (const k of Object.keys(etchInputs)) etchInputs[k].refresh();
+    etchModeSelect.value = String(state.etch.mode);
+    statusSelect.value = state.status ?? '';
+    effectSelect.value = state.effect;
+    if (document.activeElement !== configBox) configBox.value = toAttrs(showAll.checked) || '(all defaults — edit here or move a slider)';
+    const url = new URL(location.href);
+    const cfg = toAttrs(false);
+    if (cfg) url.searchParams.set('cfg', cfg); else url.searchParams.delete('cfg');
+    history.replaceState(null, '', url);
+  }
+  function commit() { applyState(); render(); }
+
+  function applyText(text) {
+    const { next, unknown } = parseAttrs(text);
+    Object.assign(state, next);
+    errorBox.hidden = unknown.length === 0;
+    errorBox.textContent = unknown.length ? `Unknown: ${unknown.join(', ')}` : '';
+    configBox.blur();
+    commit();
+  }
+  document.getElementById('apply').addEventListener('click', () => applyText(configBox.value));
+  configBox.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); applyText(configBox.value); }
   });
+  configBox.addEventListener('blur', () => { if (configBox.value !== toAttrs(showAll.checked)) applyText(configBox.value); });
+  showAll.addEventListener('change', render);
   document.getElementById('copy').addEventListener('click', async () => {
-    try { await navigator.clipboard.writeText(currentAttrs()); } catch { /* clipboard may be unavailable */ }
+    try { await navigator.clipboard.writeText(toAttrs(showAll.checked)); } catch { /* clipboard may be unavailable */ }
+  });
+  document.getElementById('reset').addEventListener('click', () => {
+    Object.assign(state, { params: { ...defaults }, etch: { ...etchDefaults }, status: null, effect: 'fire' });
+    errorBox.hidden = true;
+    commit();
   });
   document.getElementById('panel-toggle').addEventListener('click', () => {
     document.getElementById('panel').classList.toggle('open');
   });
-  refreshAttrs();
 
-  // ---- engraving dev controls ----------------------------------------------
-  const etchDefs = [
-    ['depth', 0, 0.04, 0.0005], ['roughness', 0, 1, 0.01], ['bevel', 0, 2.5, 0.01], ['interaction', 0, 2.5, 0.01],
-  ];
-  const etchRoot = document.getElementById('etch-params');
-  const etchState = { ...hero.etch };
-  function applyEtch(patch) {
-    Object.assign(etchState, patch);
-    for (const el of all()) el.etch = patch;
+  // ---- presets (localStorage) ------------------------------------------------
+  const PRESET_KEY = 'gb-demo-presets';
+  const presetList = document.getElementById('preset-list');
+  const presetName = document.getElementById('preset-name');
+  function loadPresets() { try { return JSON.parse(localStorage.getItem(PRESET_KEY) || '{}'); } catch { return {}; } }
+  function savePresets(p) { try { localStorage.setItem(PRESET_KEY, JSON.stringify(p)); } catch {} }
+  function renderPresets(selected) {
+    const presets = loadPresets();
+    presetList.innerHTML = '<option value="">saved presets…</option>';
+    for (const name of Object.keys(presets).sort()) {
+      const o = document.createElement('option'); o.value = name; o.textContent = name; presetList.append(o);
+    }
+    if (selected) presetList.value = selected;
   }
-  document.getElementById('etch-mode').addEventListener('change', (e) => applyEtch({ mode: Number(e.target.value) }));
-  for (const [name, min, max, step] of etchDefs) {
-    const wrap = document.createElement('div'); wrap.className = 'param';
-    const label = document.createElement('span'); label.className = 'name'; label.textContent = name;
-    const val = document.createElement('span'); val.className = 'val'; val.textContent = Number(etchState[name]).toFixed(name === 'depth' ? 4 : 2);
-    const input = document.createElement('input');
-    input.type = 'range'; input.min = min; input.max = max; input.step = step; input.value = etchState[name];
-    input.setAttribute('aria-label', `engraving ${name}`);
-    input.addEventListener('input', () => { applyEtch({ [name]: Number(input.value) }); val.textContent = Number(input.value).toFixed(name === 'depth' ? 4 : 2); });
-    wrap.append(label, val, input); etchRoot.append(wrap);
+  document.getElementById('preset-save').addEventListener('click', () => {
+    const name = presetName.value.trim() || `preset ${new Date().toLocaleTimeString()}`;
+    const presets = loadPresets();
+    presets[name] = toAttrs(false);
+    savePresets(presets);
+    presetName.value = '';
+    renderPresets(name);
+  });
+  document.getElementById('preset-load').addEventListener('click', () => {
+    const presets = loadPresets();
+    if (presetList.value in presets) applyText(presets[presetList.value]);
+  });
+  presetList.addEventListener('change', () => {
+    const presets = loadPresets();
+    if (presetList.value in presets) applyText(presets[presetList.value]);
+  });
+  document.getElementById('preset-delete').addEventListener('click', () => {
+    const presets = loadPresets();
+    delete presets[presetList.value];
+    savePresets(presets);
+    renderPresets('');
+  });
+  renderPresets('');
+
+  // ---- initial state: URL first, then the hero's own attributes
+  {
+    const cfg = new URL(location.href).searchParams.get('cfg');
+    if (cfg) applyText(cfg); else render();
   }
 
   // ---- stats -----------------------------------------------------------
