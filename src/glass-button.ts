@@ -87,6 +87,13 @@ export class GlassButton extends BaseElement {
     return defaults();
   }
 
+  /**
+   * Optional clock override (milliseconds). Tools that capture frames under
+   * slow software rendering set this to step time deterministically; normal
+   * use leaves it null and the animation-frame timestamp is used.
+   */
+  static timeSource: (() => number) | null = null;
+
   // One accessor pair per parameter: reading returns the parsed value, writing
   // reflects to the attribute so attributeChangedCallback stays the single path.
   static {
@@ -585,10 +592,11 @@ export class GlassButton extends BaseElement {
     this.#raf = requestAnimationFrame(this.#tick);
   }
 
-  #tick = (now: number): void => {
+  #tick = (rafNow: number): void => {
     this.#raf = 0;
     const renderer = this.#renderer;
     if (!renderer) return;
+    const now = GlassButton.timeSource ? GlassButton.timeSource() : rafNow;
     const dt = this.#lastNow ? Math.min(MAX_DT, (now - this.#lastNow) / 1000) : 0;
     this.#lastNow = now;
 

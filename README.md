@@ -14,11 +14,11 @@ Zero runtime dependencies. Ships as ESM and as a plain `<script>` IIFE.
 **[Live demo](https://vic10us.github.io/glass-button/)** — hover, press, switch
 effect and status, tune every parameter, try it on different backgrounds.
 
-[![glass-button hero: dark glass pill with fire inside](docs/media/hero.png)](https://vic10us.github.io/glass-button/)
+[![glass-button hero: hover and press on a glass pill with plasma inside](docs/media/hero.webp)](https://vic10us.github.io/glass-button/)
 
-[![The four status modes](docs/media/statuses.png)](https://vic10us.github.io/glass-button/)
+[![The four status modes](docs/media/statuses.webp)](https://vic10us.github.io/glass-button/)
 
-[![The water effect](docs/media/water.png)](https://vic10us.github.io/glass-button/)
+[![The water effect](docs/media/water.webp)](https://vic10us.github.io/glass-button/)
 
 ## Install
 
@@ -358,7 +358,13 @@ npm run shot -- all   # headless Chromium screenshots of demo scenes -> shots/
 npm run shot -- backgrounds        # the status row on every preset page background
 npm run shot -- idle --bg=white    # any scene on a preset key or #hex background
 npm run shot -- page --bg=paper    # full demo page
+npm run shot -- record --target='#hero' --frames=72 --fps=24 --name=hero --sequence=interact
+                                   # animated WebP into docs/media/ (the README previews)
 ```
+
+Recordings step the component's clock deterministically through
+`GlassButton.timeSource`, so they are smooth even under software rendering,
+and are encoded with ffmpeg (`libwebp_anim`), which must be installed.
 
 The demo has a background switcher (bottom left) with the material test set
 (black, #181818, #666, #B0B0B0, #E8E8E8, white), a colourful mesh, a

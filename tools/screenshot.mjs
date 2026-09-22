@@ -4,6 +4,13 @@
  *
  *   node tools/screenshot.mjs [scene ...] [--wait=ms] [--out=dir] [--bg=key|#hex] [--target=selector]
  *
+ * Recording: `record` captures an animation instead of a still:
+ *   node tools/screenshot.mjs record --target='#hero' --frames=84 --fps=24 --name=hero [--sequence=interact] [--width=900]
+ * Frames are stepped through the component's injectable clock (real time is
+ * far too slow under SwiftShader) and encoded with ffmpeg to an animated WebP
+ * in docs/media/<name>.webp. `--sequence=interact` hovers, presses and
+ * releases the target's button partway through.
+ *
  * Scenes: idle, hover, press, sizes, mobile, reduced, fallback, status, water,
  * backgrounds, page (full page), all (default: idle). `backgrounds` renders the status row on
  * every preset background; `--bg` sets the page background for other scenes.
@@ -17,6 +24,9 @@ import { existsSync } from 'node:fs';
 import { extname, join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright-core';
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
@@ -111,6 +121,12 @@ for (const scene of scenes) {
   }
 
   if (flags.target) target = page.locator(flags.target);
+
+  if (scene === 'record') {
+    await recordScene(page, target, flags);
+    await context.close();
+    continue;
+  }
   if (flags.etch) {
     // e.g. --etch="mode=2,depth=0.02" -> merged into every button's etch property
     const patch = Object.fromEntries(flags.etch.split(',').map((kv) => { const [k, v] = kv.split('='); return [k, Number(v)]; }));
@@ -135,3 +151,59 @@ for (const scene of scenes) {
 
 await browser.close();
 server.close();
+
+async function recordScene(page, target, flags) {
+  const frames = Number(flags.frames ?? 84);
+  const fps = Number(flags.fps ?? 24);
+  const width = Number(flags.width ?? 900);
+  const name = flags.name ?? 'recording';
+  const outFile = resolve(root, flags.out ?? 'docs/media', `${name}.webp`);
+  const dir = mkdtempSync(join(tmpdir(), 'gb-frames-'));
+  const stepMs = 1000 / fps;
+
+  // Deterministic clock: every animation frame advances exactly one step.
+  await page.evaluate(() => {
+    const G = customElements.get('glass-button');
+    window.__gbClock = 1000;
+    G.timeSource = () => window.__gbClock;
+  });
+  const nextFrame = () => page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+  await nextFrame();
+
+  const button = target.locator('glass-button').first();
+  const box = await button.boundingBox();
+  const at = (fx, fy) => ({ x: box.x + box.width * fx, y: box.y + box.height * fy });
+  const sequence = flags.sequence === 'interact'
+    ? { hover: Math.round(frames * 0.22), down: Math.round(frames * 0.5), up: Math.round(frames * 0.58), leave: Math.round(frames * 0.72) }
+    : null;
+
+  for (let i = 0; i < frames; i++) {
+    if (sequence) {
+      if (i === sequence.hover) await page.mouse.move(at(0.35, 0.45).x, at(0.35, 0.45).y, { steps: 1 });
+      if (i > sequence.hover && i < sequence.leave) {
+        const t = (i - sequence.hover) / (sequence.leave - sequence.hover);
+        const p = at(0.35 + 0.35 * t, 0.45 - 0.15 * Math.sin(t * Math.PI));
+        await page.mouse.move(p.x, p.y, { steps: 1 });
+      }
+      if (i === sequence.down) await page.mouse.down();
+      if (i === sequence.up) await page.mouse.up();
+      if (i === sequence.leave) await page.mouse.move(box.x - 40, box.y - 40, { steps: 1 });
+    }
+    await page.evaluate((ms) => { window.__gbClock += ms; }, stepMs);
+    await nextFrame();
+    await target.screenshot({ path: join(dir, `frame_${String(i).padStart(4, '0')}.png`) });
+    if (i % 12 === 0) process.stdout.write(`\r${name}: frame ${i + 1}/${frames}`);
+  }
+  process.stdout.write('\n');
+
+  const ff = spawnSync('ffmpeg', [
+    '-y', '-hide_banner', '-loglevel', 'error',
+    '-framerate', String(fps), '-i', join(dir, 'frame_%04d.png'),
+    '-vf', `scale=${width}:-2:flags=lanczos`,
+    '-c:v', 'libwebp_anim', '-lossless', '0', '-q:v', String(flags.quality ?? 78), '-compression_level', '6', '-loop', '0',
+    outFile,
+  ], { stdio: 'inherit' });
+  rmSync(dir, { recursive: true, force: true });
+  if (ff.status !== 0) throw new Error('ffmpeg failed');
+  console.log(`${name}: ${frames} frames @ ${fps}fps -> ${outFile}`);
+}
