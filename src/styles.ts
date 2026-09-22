@@ -11,7 +11,7 @@ export const STYLES = /* css */ `
   display: inline-block;
   position: relative;
   vertical-align: middle;
-  font: 500 1rem/1 var(--gb-font, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif);
+  font: 600 1rem/1 var(--gb-font, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif);
   color: var(--gb-text-color, #f4f7ff);
   /* The canvas overflows the host (glow beneath the pill), like a drop shadow would. */
   isolation: isolate;
@@ -58,14 +58,12 @@ button {
   background: transparent;
   color: inherit;
   font: inherit;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.015em;
   white-space: nowrap;
   cursor: pointer;
   user-select: none;
   -webkit-user-select: none;
   touch-action: manipulation;
-  /* Slight luminosity only: the text should look lit, not glowing. */
-  text-shadow: 0 0 14px rgba(255, 255, 255, 0.16);
   outline: none;
 }
 
@@ -88,6 +86,21 @@ button:disabled {
   justify-content: center;
   gap: 0.45em;
   width: 100%;
+  font-size: 0.94em;
+}
+
+/*
+ * Engraved label: the GL layer renders the lettering as part of the glass,
+ * so the DOM text turns transparent. It stays in the tree for assistive
+ * technology, find-in-page and selection. A built-in icon that was engraved
+ * hides the same way; a consumer's slot="icon" element stays visible.
+ */
+:host([data-etched]) .label {
+  color: transparent;
+}
+
+:host([data-etched]) .icon.engraved {
+  opacity: 0;
 }
 
 /* Built-in status icon: a line icon in the status colour with a soft glow. */

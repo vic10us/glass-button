@@ -39,6 +39,21 @@ export interface RenderFrame {
   palette: Float32Array;
   /** Effect crossfade: 0 = fire, 1 = water, in between during a transition. */
   effectMix: number;
+  /** Engraved label parameters (see EtchParams). */
+  etch: EtchParams;
+}
+
+/**
+ * Engraving model parameters. `mode` 0 renders no engraving (plain DOM text
+ * shows instead), 1 recesses the letters into the front surface, 2 places
+ * them just beneath it. Depth is in pill heights; the rest are unit scales.
+ */
+export interface EtchParams {
+  mode: 0 | 1 | 2;
+  depth: number;
+  roughness: number;
+  bevel: number;
+  interaction: number;
 }
 
 /** Canvas and pill rectangle in device pixels; pill y is measured from the top. */
@@ -49,6 +64,11 @@ export interface Layout {
   pillY: number;
   pillW: number;
   pillH: number;
+  /** Label box in device pixels relative to the pill's top-left; zero size when unknown. */
+  labelX: number;
+  labelY: number;
+  labelW: number;
+  labelH: number;
 }
 
 /** Fire buffer texel density: texels per pill height. Independent of DPR. */
@@ -79,6 +99,11 @@ const COMPOSITE_UNIFORMS = [
   'uDecode',
   'uRimTint',
   'uEmberColor',
+  'uLabel',
+  'uGlyph',
+  'uGlyphTexel',
+  'uEtch',
+  'uEtchMode',
 ] as const;
 
 export class Renderer {
@@ -128,6 +153,8 @@ export class Renderer {
   private bloomB: RenderTarget | null = null;
   /** Fire buffer half-extent in pill units (x, y). */
   private fireExtent = { x: 1, y: 0.5 };
+  private glyphTex: WebGLTexture | null = null;
+  private glyphSize = { w: 0, h: 0 };
 
   protected constructor(gl: GL) {
     this.gl = gl;
@@ -145,6 +172,32 @@ export class Renderer {
     gl.disable(gl.DEPTH_TEST);
     gl.disable(gl.CULL_FACE);
     gl.disable(gl.BLEND);
+  }
+
+  /**
+   * Upload (or clear) the label coverage mask. The mask covers the whole
+   * pill at device resolution; see glyphs.ts.
+   */
+  setGlyph(source: HTMLCanvasElement | null): void {
+    const { gl } = this;
+    if (!source) {
+      if (this.glyphTex) gl.deleteTexture(this.glyphTex);
+      this.glyphTex = null;
+      this.glyphSize = { w: 0, h: 0 };
+      return;
+    }
+    if (!this.glyphTex) this.glyphTex = gl.createTexture();
+    gl.activeTexture(gl.TEXTURE2);
+    gl.bindTexture(gl.TEXTURE_2D, this.glyphTex);
+    gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, source);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.bindTexture(gl.TEXTURE_2D, null);
+    gl.activeTexture(gl.TEXTURE0);
+    this.glyphSize = { w: source.width, h: source.height };
   }
 
   resize(layout: Layout): void {
@@ -253,16 +306,30 @@ export class Renderer {
     gl.uniform4fv(u.uParams, this.paramBuf);
     gl.uniform1f(u.uDecode, 1 / this.encode);
     gl.uniform3f(u.uRimTint, frame.palette[15], frame.palette[16], frame.palette[17]);
+    // Label box in pill units (centre, half-size), y up from the pill centre.
+    const lcx = (L.labelX + L.labelW / 2 - L.pillW / 2) / L.pillH;
+    const lcy = -(L.labelY + L.labelH / 2 - L.pillH / 2) / L.pillH;
+    gl.uniform4f(u.uLabel, lcx, lcy, L.labelW / 2 / L.pillH, L.labelH / 2 / L.pillH);
     // Embers glow with the "hot" ramp stop.
     gl.uniform3f(u.uEmberColor, frame.palette[9] * 1.1, frame.palette[10] * 1.1, frame.palette[11] * 1.1);
     gl.uniform1i(u.uFire, 0);
     gl.uniform1i(u.uBloom, 1);
+    gl.uniform1i(u.uGlyph, 2);
+    const e = frame.etch;
+    const etchMode = this.glyphTex && e.mode > 0 ? e.mode : 0;
+    gl.uniform1i(u.uEtchMode, etchMode);
+    gl.uniform4f(u.uEtch, e.depth, e.roughness, e.bevel, e.interaction);
+    gl.uniform2f(u.uGlyphTexel, 1 / Math.max(1, this.glyphSize.w), 1 / Math.max(1, this.glyphSize.h));
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, fire.tex);
     gl.activeTexture(gl.TEXTURE1);
     gl.bindTexture(gl.TEXTURE_2D, bloomB.tex);
+    gl.activeTexture(gl.TEXTURE2);
+    gl.bindTexture(gl.TEXTURE_2D, this.glyphTex);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
 
+    gl.bindTexture(gl.TEXTURE_2D, null);
+    gl.activeTexture(gl.TEXTURE1);
     gl.bindTexture(gl.TEXTURE_2D, null);
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, null);
@@ -297,6 +364,8 @@ export class Renderer {
     deleteRenderTarget(gl, this.bloomA);
     deleteRenderTarget(gl, this.bloomB);
     this.fireTarget = this.bloomA = this.bloomB = null;
+    if (this.glyphTex) gl.deleteTexture(this.glyphTex);
+    this.glyphTex = null;
     gl.deleteProgram(this.fireProg);
     gl.deleteProgram(this.waterProg);
     gl.deleteProgram(this.blurProg);

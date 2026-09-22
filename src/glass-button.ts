@@ -6,9 +6,10 @@
  * the glow beneath it. This file owns the DOM, attribute/property plumbing,
  * accessibility and the frame loop; all shading lives in the renderer.
  */
+import { type Box, renderGlyphMask } from './glyphs';
 import { InteractionState, expSmooth } from './interaction';
 import { PARAM_ATTRS, PARAM_DEFS, type Params, attrToParam, defaults, parseParam } from './params';
-import { type Layout, Renderer } from './renderer';
+import { type EtchParams, type Layout, Renderer } from './renderer';
 import {
   DEFAULT_PALETTE,
   EFFECT_PRESETS,
@@ -26,6 +27,7 @@ import { STYLES } from './styles';
 
 export type { Params, ParamName } from './params';
 export type { Palette, StatusName, EffectName, RGB } from './status';
+export type { EtchParams } from './renderer';
 export { STATUS_NAMES, STATUS_PRESETS, EFFECT_NAMES, DEFAULT_PALETTE, WATER_PALETTE } from './status';
 
 export interface StatusChangeDetail {
@@ -43,6 +45,8 @@ const MAX_DT = 0.1;
 const PALETTE_RATE = 5;
 /** Effect crossfade rate (1/s) when switching fire <-> water. */
 const EFFECT_RATE = 4;
+/** Default engraving: shallow surface groove, moderately frosted floor. */
+const DEFAULT_ETCH: EtchParams = { mode: 1, depth: 0.012, roughness: 0.6, bevel: 1, interaction: 1 };
 
 // The shadow template is built on first use, not at import time, so the
 // module can be imported on a server (Next.js, Nuxt, SvelteKit, Angular
@@ -109,6 +113,9 @@ export class GlassButton extends BaseElement {
   /** Eased 0 (fire) .. 1 (water) and its target. */
   #effectMix = 0;
   #customPalette: Palette | null = null;
+  #etch: EtchParams = { ...DEFAULT_ETCH };
+  #glyphDirty = true;
+  #lastLayout: { w: number; h: number; dpr: number } | null = null;
   /** Palette uploaded to the GPU (eased) and the one it is easing toward. */
   readonly #palette = flattenPalette(DEFAULT_PALETTE);
   readonly #paletteTarget = flattenPalette(DEFAULT_PALETTE);
@@ -118,6 +125,7 @@ export class GlassButton extends BaseElement {
   readonly #canvas: HTMLCanvasElement;
   readonly #button: HTMLButtonElement;
   readonly #icon: HTMLSpanElement;
+  readonly #label: HTMLSpanElement;
   readonly #srStatus: HTMLSpanElement;
   readonly #interaction = new InteractionState();
 
@@ -144,6 +152,7 @@ export class GlassButton extends BaseElement {
     this.#canvas = root.querySelector('canvas')!;
     this.#button = root.querySelector('button')!;
     this.#icon = root.querySelector('.icon')!;
+    this.#label = root.querySelector('.label')!;
     this.#srStatus = root.querySelector('.sr-status')!;
     this.#bindEvents();
   }
@@ -183,6 +192,21 @@ export class GlassButton extends BaseElement {
   set effect(v: EffectName) {
     if (v === 'fire') this.removeAttribute('effect');
     else this.setAttribute('effect', v);
+  }
+
+  /**
+   * Engraving parameters (development tuning). `mode` 0 shows the plain DOM
+   * label instead of engraving it. Setting merges the given keys.
+   */
+  get etch(): EtchParams {
+    return { ...this.#etch };
+  }
+
+  set etch(patch: Partial<EtchParams>) {
+    this.#etch = { ...this.#etch, ...patch };
+    this.#glyphDirty = true;
+    this.#relayout();
+    this.#wake();
   }
 
   /** Custom palette overriding the status palette; null to clear. */
@@ -248,6 +272,13 @@ export class GlassButton extends BaseElement {
       this.#motionQuery.addEventListener?.('change', this.#onMotionChange);
     }
     document.addEventListener('visibilitychange', this.#onVisibility);
+    this.shadowRoot!.addEventListener('slotchange', this.#onSlotChange);
+    if (typeof document !== 'undefined' && 'fonts' in document) {
+      (document as Document & { fonts: FontFaceSet }).fonts.ready.then(() => {
+        this.#glyphDirty = true;
+        this.#relayout();
+      });
+    }
 
     this.#applyMotionPreference();
     this.#relayout();
@@ -264,7 +295,13 @@ export class GlassButton extends BaseElement {
     this.#motionQuery?.removeEventListener?.('change', this.#onMotionChange);
     this.#motionQuery = null;
     document.removeEventListener('visibilitychange', this.#onVisibility);
+    this.shadowRoot!.removeEventListener('slotchange', this.#onSlotChange);
   }
+
+  #onSlotChange = (): void => {
+    this.#glyphDirty = true;
+    this.#relayout();
+  };
 
   attributeChangedCallback(name: string, _old: string | null, value: string | null): void {
     if (name === 'disabled') {
@@ -335,6 +372,8 @@ export class GlassButton extends BaseElement {
     this.#srStatus.textContent = preset ? `Status: ${preset.label}` : '';
     this.#recomputeParams();
     this.#renderIcon();
+    this.#glyphDirty = true;
+    this.#relayout();
     this.#wake();
   }
 
@@ -437,6 +476,9 @@ export class GlassButton extends BaseElement {
     const ph = Math.round(cssH * dpr);
     if (canvas.width !== pw) canvas.width = pw;
     if (canvas.height !== ph) canvas.height = ph;
+    // Label box relative to the button (layout coordinates, unaffected by
+    // the press transform), measured from the label's inline content.
+    const lb = this.#labelBox(w, h);
     const layout: Layout = {
       canvasW: pw,
       canvasH: ph,
@@ -444,10 +486,86 @@ export class GlassButton extends BaseElement {
       pillY: padTop * dpr,
       pillW: w * dpr,
       pillH: h * dpr,
+      labelX: lb.x * dpr,
+      labelY: lb.y * dpr,
+      labelW: lb.w * dpr,
+      labelH: lb.h * dpr,
     };
     this.#renderer.resize(layout);
+    const prev = this.#lastLayout;
+    if (!prev || prev.w !== w || prev.h !== h || prev.dpr !== dpr) this.#glyphDirty = true;
+    this.#lastLayout = { w, h, dpr };
+    if (this.#glyphDirty) this.#updateGlyph(w, h, dpr);
     this.#pointerRect = null;
     this.#wake();
+  }
+
+  // ------------------------------------------------------------- engraving
+
+  /** Rasterise the label into the renderer's coverage mask and hide the DOM text. */
+  #updateGlyph(w: number, h: number, dpr: number): void {
+    const renderer = this.#renderer;
+    if (!renderer) return;
+    this.#glyphDirty = false;
+    if (this.#etch.mode === 0) {
+      renderer.setGlyph(null);
+      this.removeAttribute('data-etched');
+      this.#icon.classList.remove('engraved');
+      return;
+    }
+    const b = this.#button.getBoundingClientRect();
+    if (b.width === 0 || b.height === 0) return;
+    const sx = w / b.width;
+    const sy = h / b.height;
+    const toBox = (r: DOMRect): Box => ({ x: (r.left - b.left) * sx, y: (r.top - b.top) * sy, w: r.width * sx, h: r.height * sy });
+
+    // Text: the nodes assigned to the default slot.
+    const slot = this.#label.querySelector('slot:not([name])') as HTMLSlotElement;
+    const nodes = slot.assignedNodes({ flatten: true });
+    const text = nodes.map((n) => n.textContent ?? '').join('');
+    let textBox: Box | null = null;
+    if (nodes.length) {
+      const range = document.createRange();
+      range.setStartBefore(nodes[0]);
+      range.setEndAfter(nodes[nodes.length - 1]);
+      const r = range.getBoundingClientRect();
+      if (r.width > 0) textBox = toBox(r);
+    }
+
+    // Icon: engrave the built-in one; a consumer's slot="icon" stays as DOM.
+    const iconSlot = this.#icon.querySelector('slot') as HTMLSlotElement;
+    // No `flatten`: that would return the slot's fallback (our own SVG).
+    const customIcon = iconSlot.assignedNodes().length > 0;
+    const preset = this.#status ? STATUS_PRESETS[this.#status] : null;
+    const iconVisible = !this.#icon.hasAttribute('hidden');
+    let iconSvg: string | null = null;
+    let iconBox: Box | null = null;
+    if (preset && iconVisible && !customIcon) {
+      iconSvg = ICONS[preset.icon];
+      iconBox = toBox(this.#icon.getBoundingClientRect());
+    }
+    this.#icon.classList.toggle('engraved', iconSvg !== null);
+
+    const cs = getComputedStyle(this.#label);
+    const font = cs.font || `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+    const letterSpacing = parseFloat(cs.letterSpacing) || 0;
+
+    const mask = renderGlyphMask({ width: w, height: h, dpr, text, textBox, font, letterSpacing, iconSvg, iconBox });
+    renderer.setGlyph(mask);
+    this.toggleAttribute('data-etched', mask !== null);
+  }
+
+  /** Bounding box of the label's content within the button, in CSS pixels. */
+  #labelBox(buttonW: number, buttonH: number): { x: number; y: number; w: number; h: number } {
+    const range = document.createRange();
+    range.selectNodeContents(this.#label);
+    const r = range.getBoundingClientRect();
+    const b = this.#button.getBoundingClientRect();
+    if (r.width === 0 || b.width === 0) return { x: 0, y: 0, w: 0, h: 0 };
+    // Convert through the button's rect so any transform scales out.
+    const sx = buttonW / b.width;
+    const sy = buttonH / b.height;
+    return { x: (r.left - b.left) * sx, y: (r.top - b.top) * sy, w: r.width * sx, h: r.height * sy };
   }
 
   /** Request rendering; the loop keeps itself alive only while motion is needed. */
@@ -486,6 +604,7 @@ export class GlassButton extends BaseElement {
       hover: s.hover,
       palette: this.#palette,
       effectMix: this.#effectMix,
+      etch: this.#etch,
       press: s.press,
       pulse: s.pulse,
       pointerX: s.pointerX,

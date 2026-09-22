@@ -63,6 +63,11 @@ uniform vec2 uFireExtent;  // half-extent of the fire buffer in pill units
 uniform sampler2D uFire;   // premultiplied HDR fire (see fire.frag)
 uniform sampler2D uBloom;  // blurred fire: bloom and illuminance
 uniform float uDecode;     // undoes the fire pass encode scale
+uniform vec4 uLabel;       // label box in pill units: centre.xy, half-size.zw (zw = 0 -> none)
+uniform sampler2D uGlyph;  // label coverage mask covering the pill (alpha = inside a glyph)
+uniform vec2 uGlyphTexel;  // 1 / mask size
+uniform vec4 uEtch;        // depth (pill heights), roughness, bevel, effect interaction
+uniform int uEtchMode;     // 0 none, 1 surface engraving, 2 lettering just below the surface
 uniform vec3 uRimTint;     // status colour for edge light and side reflections
 uniform vec3 uEmberColor;  // hot ramp colour for embers
 
@@ -276,6 +281,68 @@ void main() {
     // what keeps the effect saturated over a white surface.
     float occlusion = min(1.0, 1.1 * fire.a);
 
+    // ---- 5. engraved label -------------------------------------------------
+    // The label is a shallow engraving in the front face. Its coverage mask
+    // gives, per pixel: how much of the pixel is inside a glyph (frosted
+    // floor of the groove), the local edge gradient (the groove walls, used
+    // as a bevel normal), and which wall is nearby (the upper wall sits in
+    // shadow from the light above; the lower wall is lit by it and by the
+    // fire below). Nothing here is a text colour: every term is the glass
+    // lighting model applied to a slightly different surface.
+    float frost = 0.0;        // frosted floor coverage x roughness
+    float shade = 0.0;        // upper-wall shadow
+    float lowerWall = 0.0;    // lower-wall band
+    vec3 bevelSpec = vec3(0.0);
+    vec3 frostEmission = vec3(0.0);
+    float frostThrough = 0.0; // page light scattered by the frosted floor
+    if (uEtchMode > 0) {
+      float depth = uEtch.x;
+      float rough = clamp(uEtch.y, 0.0, 1.0);
+      float bevel = uEtch.z;
+      float inter = uEtch.w;
+      // Mask lookup: the mask covers the pill; canvas y runs downward.
+      vec2 gUv = vec2((p.x + halfW) / (2.0 * halfW), 0.5 - p.y);
+      if (uEtchMode == 2) {
+        // Lettering below the surface is seen through the refracting front
+        // face: parallax along the surface tilt, growing toward the edges.
+        vec2 par = vec2(-N.x, N.y) * depth * 3.0;
+        gUv += vec2(par.x / (2.0 * halfW), -par.y);
+      }
+      vec2 tx = uGlyphTexel * 1.25;
+      float m  = texture(uGlyph, gUv).a;
+      float mL = texture(uGlyph, gUv - vec2(tx.x, 0.0)).a;
+      float mR = texture(uGlyph, gUv + vec2(tx.x, 0.0)).a;
+      float mU = texture(uGlyph, gUv - vec2(0.0, tx.y)).a;   // screen-up neighbour
+      float mD = texture(uGlyph, gUv + vec2(0.0, tx.y)).a;
+      vec2 gGrad = vec2(mR - mL, mU - mD);                    // y-up, points into the glyph
+      float edgeAmt = clamp(length(gGrad) * 1.6, 0.0, 1.0);
+      // Walls: inside here, outside one groove-depth above (or below).
+      shade = m * (1.0 - texture(uGlyph, gUv - vec2(0.0, depth)).a);
+      lowerWall = m * (1.0 - texture(uGlyph, gUv + vec2(0.0, depth)).a);
+      shade *= 0.6 * bevel;
+      // Bevel: the groove wall's normal tilts toward the groove centre, so a
+      // wall facing the key light (the lower wall, normal up) catches a
+      // glint while the opposite wall turns away.
+      vec3 Nb = normalize(vec3(N.xy + gGrad * 2.4 * bevel, 1.0));
+      float NbdV = max(dot(Nb, V), 0.0);
+      float Fb = 0.04 + 0.96 * pow(1.0 - NbdV, 5.0);
+      vec3 wallEnv = studio(reflect(-V, Nb), uPointer, uRimTint);
+      bevelSpec = wallEnv * Fb * edgeAmt * P_REFLECTION * (uEtchMode == 1 ? 0.9 : 0.45);
+      // The lower wall also collects the fire's light: a faint warm line
+      // along the bottom of every stroke, moving with the flames.
+      bevelSpec += fireLight * lowerWall * 1.3 * inter;
+      // Frosted floor: a microscopically rough surface scatters whatever
+      // light reaches it. From the page behind (through alpha), from the
+      // studio above, and from the effect below. It also blurs the effect
+      // seen through it into a soft glow instead of sharp tongues.
+      frost = m * rough;
+      frostThrough = frost * 0.42;
+      vec3 studioScatter = vec3(0.86, 0.9, 1.0) * 0.125 * P_REFLECTION;
+      frostEmission = frost * (studioScatter + fireLight * 0.45 * inter + glow * 0.25 * inter);
+      fire.rgb = mix(fire.rgb, glow * 1.1, frost * 0.85);
+      if (uEtchMode == 1) lights *= 1.0 - 0.6 * frost;   // rough floor kills the mirror-like specular
+    }
+
     // ---- 4. the effect illuminating the glass -----------------------------
     // In-scatter in the tinted body above the flames: more glass, more glow.
     vec3 bleed = fireLight * 0.10 * exp(-fy * 4.0) * (0.5 + 0.5 * thickness)
@@ -292,11 +359,13 @@ void main() {
 
     // ---- assemble ---------------------------------------------------------
     float T = 1.0 - F;   // enters the glass
-    vec3 emission = fire.rgb + bloom + spark + bleed + innerRefl + tirLight;
-    inside = F * lights + T * emission + warmRim + edgeLight;
+    vec3 emission = (fire.rgb + bloom + spark + bleed + innerRefl + tirLight + frostEmission) * (1.0 - shade);
+    inside = F * lights + T * emission + warmRim + edgeLight + bevelSpec;
     // Page visible through this pixel: via the body (attenuated, minus the
-    // TIR band and the flame's own occlusion) and via ambient reflection.
-    float throughBody = T * transmit * (1.0 - tir) * (1.0 - occlusion);
+    // TIR band, the flame's own occlusion and the engraving's shadowed
+    // wall), via the frosted floor's scatter, and via ambient reflection.
+    float throughBody = T * transmit * (1.0 - tir) * (1.0 - occlusion) * (1.0 - 0.5 * frost) * (1.0 - shade)
+                      + frostThrough * (1.0 - shade);
     throughIn = clamp(throughBody + reflectedPage, 0.0, 1.0);
   }
 

@@ -155,6 +155,28 @@ The server output is the plain tag with its light-DOM text, so the label is
 in the HTML before hydration. `defineGlassButton(tag)` is exported if you
 need to register under a different tag name.
 
+## Engraved label
+
+The label is not printed on the glass, it is engraved into it. The element
+rasterises its own text and built-in icon into a coverage mask at device
+resolution (tracing the live DOM layout, so wrapping, fonts and spacing stay
+the browser's job) and the composite shader treats the mask as a shallow
+groove in the front face: a frosted floor that scatters whatever light
+reaches it (the page behind, the studio above, the effect below), an upper
+wall in shadow, a lower wall that catches the key light and a faint warm line
+from the fire, and bevel glints from the same environment the glass reflects.
+There is no text colour and no text shadow; the letters read because rough
+glass scatters light differently from polished glass, on any page.
+
+A trailing `→` in the label is replaced by a drawn arrow proportioned to the
+font. The DOM text stays in the tree (transparent) for assistive technology,
+find-in-page and selection. A consumer-provided `slot="icon"` element is not
+engraved and stays visible. Without WebGL2 the plain text shows.
+
+`etch` property (development tuning, merges keys): `{ mode, depth,
+roughness, bevel, interaction }`. `mode` 1 recesses the letters into the
+surface (default), 2 places them just beneath it, 0 shows plain text.
+
 ## Status modes
 
 `status="healthy" | "warning" | "trouble" | "unknown"` recolours the fire,

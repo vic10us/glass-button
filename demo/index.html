@@ -161,6 +161,15 @@
   <div class="stat"><span>Backend</span><span id="stat-renderer">…</span></div>
   <div class="stat"><span>Frame rate</span><span id="stat-fps">…</span></div>
   <div class="stat"><span>Device pixel ratio</span><span id="stat-dpr">…</span></div>
+  <h3>Engraving (dev)</h3>
+  <div class="param"><span class="name">mode</span>
+    <select id="etch-mode" aria-label="Engraving mode" style="grid-column: 1 / -1; font: inherit; background: var(--ui-bg); color: var(--fg); border: 1px solid var(--border); border-radius: 6px; padding: 3px 6px;">
+      <option value="1">surface engraving</option>
+      <option value="2">lettering below surface</option>
+      <option value="0">plain text (off)</option>
+    </select>
+  </div>
+  <div id="etch-params"></div>
   <h3>Parameters</h3>
   <div id="params"></div>
   <div class="actions">
@@ -179,16 +188,18 @@
   // `css` is the body background; `light` flips the prose colours.
   const paper = "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.93 0 0 0 0 0.92 0 0 0 0 0.90 0 0 0 0.35 0.65'/></filter><rect width='200' height='200' filter='url(%23n)'/></svg>\")";
   const BACKGROUNDS = {
-    black:    { css: '#050608', light: false },
-    charcoal: { css: '#0b0d12', light: false },
-    navy:     { css: '#0f1a33', light: false },
-    slate:    { css: '#2a3140', light: false },
-    grey:     { css: '#7a8290', light: true },
-    light:    { css: '#e6e9ef', light: true },
-    white:    { css: '#ffffff', light: true },
-    gradient: { css: 'linear-gradient(135deg, #0b1026 0%, #2a1240 55%, #4a1030 100%)', light: false },
-    mesh:     { css: 'radial-gradient(at 20% 15%, #1e3a8a 0, transparent 50%), radial-gradient(at 80% 20%, #7c3aed 0, transparent 50%), radial-gradient(at 60% 85%, #0ea5e9 0, transparent 55%), radial-gradient(at 15% 80%, #f43f5e 0, transparent 50%), #0b0d12', light: false },
-    paper:    { css: paper + ', #ece9e2', light: true },
+    black:     { css: '#000000', light: false },
+    darkgray:  { css: '#181818', light: false },
+    charcoal:  { css: '#0b0d12', light: false },
+    midgray:   { css: '#666666', light: false },
+    lightgray: { css: '#b0b0b0', light: true },
+    verylight: { css: '#e8e8e8', light: true },
+    white:     { css: '#ffffff', light: true },
+    navy:      { css: '#0f1a33', light: false },
+    gradient:  { css: 'linear-gradient(135deg, #0b1026 0%, #2a1240 55%, #4a1030 100%)', light: false },
+    mesh:      { css: 'radial-gradient(at 20% 15%, #1e3a8a 0, transparent 50%), radial-gradient(at 80% 20%, #7c3aed 0, transparent 50%), radial-gradient(at 60% 85%, #0ea5e9 0, transparent 55%), radial-gradient(at 15% 80%, #f43f5e 0, transparent 50%), #0b0d12', light: false },
+    photo:     { css: "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='1600' height='900'><defs><filter id='b'><feGaussianBlur stdDeviation='28'/></filter><linearGradient id='sky' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='%23142033'/><stop offset='0.55' stop-color='%23c9884a'/><stop offset='1' stop-color='%23f2d6b3'/></linearGradient></defs><rect width='1600' height='900' fill='url(%23sky)'/><g filter='url(%23b)' opacity='0.85'><circle cx='320' cy='260' r='120' fill='%23ffd9a0'/><circle cx='1180' cy='180' r='90' fill='%23fff1d6'/><circle cx='900' cy='420' r='160' fill='%23e08a4a'/><circle cx='1400' cy='520' r='130' fill='%2377a7d8'/><circle cx='560' cy='640' r='190' fill='%235b3a2a'/></g><rect y='700' width='1600' height='200' fill='%23241a14' opacity='0.8'/></svg>\")" + ' center / cover no-repeat, #3a2a20', light: false },
+    paper:     { css: paper + ', #ece9e2', light: true },
   };
   const bgbar = document.getElementById('bgbar');
   const bgCustom = document.getElementById('bg-custom');
@@ -315,6 +326,28 @@
     document.getElementById('panel').classList.toggle('open');
   });
   refreshAttrs();
+
+  // ---- engraving dev controls ----------------------------------------------
+  const etchDefs = [
+    ['depth', 0, 0.04, 0.0005], ['roughness', 0, 1, 0.01], ['bevel', 0, 2.5, 0.01], ['interaction', 0, 2.5, 0.01],
+  ];
+  const etchRoot = document.getElementById('etch-params');
+  const etchState = { ...hero.etch };
+  function applyEtch(patch) {
+    Object.assign(etchState, patch);
+    for (const el of all()) el.etch = patch;
+  }
+  document.getElementById('etch-mode').addEventListener('change', (e) => applyEtch({ mode: Number(e.target.value) }));
+  for (const [name, min, max, step] of etchDefs) {
+    const wrap = document.createElement('div'); wrap.className = 'param';
+    const label = document.createElement('span'); label.className = 'name'; label.textContent = name;
+    const val = document.createElement('span'); val.className = 'val'; val.textContent = Number(etchState[name]).toFixed(name === 'depth' ? 4 : 2);
+    const input = document.createElement('input');
+    input.type = 'range'; input.min = min; input.max = max; input.step = step; input.value = etchState[name];
+    input.setAttribute('aria-label', `engraving ${name}`);
+    input.addEventListener('input', () => { applyEtch({ [name]: Number(input.value) }); val.textContent = Number(input.value).toFixed(name === 'depth' ? 4 : 2); });
+    wrap.append(label, val, input); etchRoot.append(wrap);
+  }
 
   // ---- stats -----------------------------------------------------------
   document.getElementById('stat-renderer').textContent = hero.renderer;

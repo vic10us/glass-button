@@ -20,11 +20,16 @@ import { chromium } from 'playwright-core';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
-const flags = Object.fromEntries(args.filter((a) => a.startsWith('--')).map((a) => a.slice(2).split('=')));
+const flags = Object.fromEntries(
+  args.filter((a) => a.startsWith('--')).map((a) => {
+    const i = a.indexOf('=');
+    return i < 0 ? [a.slice(2), true] : [a.slice(2, i), a.slice(i + 1)];
+  }),
+);
 let scenes = args.filter((a) => !a.startsWith('--'));
 if (scenes.length === 0) scenes = ['idle'];
 if (scenes.includes('all')) scenes = ['idle', 'hover', 'press', 'sizes', 'mobile', 'reduced', 'fallback', 'status', 'water'];
-const BG_KEYS = ['black', 'charcoal', 'navy', 'slate', 'grey', 'light', 'white', 'gradient', 'mesh', 'paper'];
+const BG_KEYS = ['black', 'darkgray', 'midgray', 'lightgray', 'verylight', 'white', 'mesh', 'photo'];
 if (scenes.includes('backgrounds')) scenes = scenes.filter((s) => s !== 'backgrounds').concat(BG_KEYS.map((k) => `bg-${k}`));
 const wait = Number(flags.wait ?? 1500);
 const outDir = resolve(root, flags.out ?? 'shots');
@@ -74,7 +79,7 @@ for (const scene of scenes) {
   });
   page.on('pageerror', (e) => console.log(`[${scene}] pageerror: ${e.message}`));
   await page.goto(base, { waitUntil: 'networkidle' });
-  await page.waitForFunction(() => customElements.get('glass-button') !== undefined);
+  await page.waitForFunction(() => customElements.get('glass-button') !== undefined, null, { polling: 250, timeout: 90000 });
   // The fixed tuning panel would paint over element screenshots.
   await page.addStyleTag({ content: '.panel, .panel-toggle, .bgbar { display: none !important; }' });
 
@@ -104,8 +109,21 @@ for (const scene of scenes) {
   }
 
   if (flags.target) target = page.locator(flags.target);
+  if (flags.etch) {
+    // e.g. --etch="mode=2,depth=0.02" -> merged into every button's etch property
+    const patch = Object.fromEntries(flags.etch.split(',').map((kv) => { const [k, v] = kv.split('='); return [k, Number(v)]; }));
+    await page.evaluate((patch) => { for (const el of document.querySelectorAll('glass-button')) el.etch = patch; }, patch);
+  }
+  if (flags.attrs) {
+    // e.g. --attrs="level=1.8,effect=water" -> set on every button, then let it settle
+    const pairs = flags.attrs.split(',').map((kv) => kv.split('='));
+    await page.evaluate((pairs) => {
+      for (const el of document.querySelectorAll('glass-button')) for (const [k, v] of pairs) el.setAttribute(k, v);
+    }, pairs);
+  }
   await page.waitForTimeout(wait);
-  const file = join(outDir, `${bgKey && !scene.startsWith('bg-') ? `${scene}-${bgKey.replace('#', '')}` : scene}.png`);
+  const suffix = (bgKey && !scene.startsWith('bg-') ? `-${bgKey.replace('#', '')}` : '') + (flags.name ? `-${flags.name}` : '');
+  const file = join(outDir, `${scene}${suffix}.png`);
   if (target) await target.screenshot({ path: file });
   else await page.screenshot({ path: file, fullPage: true });
   console.log(`${scene}: renderer=${renderer} -> ${file}`);
