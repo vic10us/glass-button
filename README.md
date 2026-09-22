@@ -174,17 +174,17 @@ find-in-page and selection. A consumer-provided `slot="icon"` element is not
 engraved and stays visible. Without WebGL2 the plain text shows.
 
 `etch` property (development tuning, merges keys): `{ mode, depth,
-roughness, bevel, interaction }`. `mode` 1 recesses the letters into the
-surface (default), 2 places them just beneath it, 0 shows plain text.
+roughness, bevel, interaction }`. `mode` 2 places the letters just beneath
+the surface (default), 1 recesses them into it, 0 shows plain text. Defaults:
+depth 0, roughness 1, bevel 0.41, interaction 2.5.
 
 ## Status modes
 
-`status="healthy" | "warning" | "trouble" | "unknown"` recolours the fire,
-the glass rim and the floor glow, shows a matching line icon (check circle,
-warning triangle, cross circle, question circle) and applies a few preset
-parameter nudges (Unknown burns lower and sparklier, like plasma). Without
-a status the button keeps the default orange fire and shows no icon.
-Changing the status crossfades the palette over about half a second.
+`status="healthy" | "warning" | "trouble" | "unknown"` recolours the effect,
+the glass rim and the floor glow and shows a matching line icon (check
+circle, warning triangle, cross circle, question circle). `unknown` is the
+default when the attribute is missing or invalid. Changing the status
+crossfades the palette over about half a second.
 
 ```html
 <glass-button status="healthy">Healthy</glass-button>
@@ -195,8 +195,8 @@ Changing the status crossfades the palette over about half a second.
 </glass-button>
 ```
 
-- `status` property mirrors the attribute; `null` clears it. Invalid values
-  are ignored.
+- `status` property mirrors the attribute; setting `null` removes it, which
+  means `unknown`. Invalid values also read as `unknown`.
 - `statuschange`: `CustomEvent<{ oldStatus, newStatus }>` after a change.
 - `icon="none"` hides the built-in icon; an element with `slot="icon"`
   replaces it. `::part(icon)` styles the icon wrapper, and
@@ -221,8 +221,7 @@ click splashes. Switching effects crossfades over about half a second.
 <glass-button effect="water" status="healthy">Healthy</glass-button>
 ```
 
-Status palettes tint water the same way they tint fire; without a status,
-water uses an aqua palette (`WATER_PALETTE`). Parameters are generic: `level`
+Status palettes tint water the same way they tint fire. Parameters are generic: `level`
 is flame height or water level, `turbulence` the curl or wave amplitude,
 `speed` the flow, `particles` embers or bubbles, `shimmer` heat haze or
 ripple detail. Effective values layer defaults, then
@@ -240,17 +239,17 @@ below.
 
 | Attribute | Property | Default | Range | Effect |
 |---|---|---|---|---|
-| `intensity` | `intensity` | 1.0 | 0–3 | Effect brightness and density |
+| `intensity` | `intensity` | 1.59 | 0–3 | Effect brightness and density |
 | `level` | `level` | 1.0 | 0–2.5 | Flame height or water level |
-| `turbulence` | `turbulence` | 1.0 | 0–3 | Curl of the flames or wave amplitude |
-| `speed` | `speed` | 1.0 | 0–4 | Time scale of the effect |
-| `glass-opacity` | `glassOpacity` | 0.86 | 0–1 | Darkness of the glass body over the page |
+| `turbulence` | `turbulence` | 0.3 | 0–3 | Curl of the flames or wave amplitude |
+| `speed` | `speed` | 0.8 | 0–4 | Time scale of the effect |
+| `glass-opacity` | `glassOpacity` | 0.29 | 0–1 | Darkness of the glass body over the page |
 | `glass-thickness` | `glassThickness` | 1.0 | 0.2–3 | Curvature and width of the rounded edge zone |
-| `refraction` | `refraction` | 1.0 | 0–3 | Distortion of the effect through the curved edge |
+| `refraction` | `refraction` | 3.0 | 0–3 | Distortion of the effect through the curved edge |
 | `bloom` | `bloom` | 1.0 | 0–3 | Bloom, light leak and floor glow |
 | `reflection` | `reflection` | 1.0 | 0–3 | Fresnel and environment reflection |
-| `particles` | `particles` | 1.0 | 0–4 | Embers or bubbles |
-| `shimmer` | `shimmer` | 1.0 | 0–3 | Heat haze or ripple detail |
+| `particles` | `particles` | 0.31 | 0–4 | Embers or bubbles |
+| `shimmer` | `shimmer` | 0 | 0–3 | Heat haze or ripple detail |
 
 - `params` (get/set): all parameters as a plain object; setting merges keys.
 - `GlassButton.defaults`: a copy of the default parameter set.

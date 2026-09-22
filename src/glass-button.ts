@@ -11,14 +11,13 @@ import { InteractionState, expSmooth } from './interaction';
 import { PARAM_ATTRS, PARAM_DEFS, type Params, attrToParam, defaults, parseParam } from './params';
 import { type EtchParams, type Layout, Renderer } from './renderer';
 import {
-  DEFAULT_PALETTE,
+  DEFAULT_STATUS,
   EFFECT_PRESETS,
   type EffectName,
   ICONS,
   type Palette,
   STATUS_PRESETS,
   type StatusName,
-  WATER_PALETTE,
   flattenPalette,
   isEffect,
   isStatus,
@@ -29,11 +28,11 @@ import { STYLES } from './styles';
 export type { Params, ParamName } from './params';
 export type { Palette, StatusName, EffectName, RGB } from './status';
 export type { EtchParams } from './renderer';
-export { STATUS_NAMES, STATUS_PRESETS, EFFECT_NAMES, DEFAULT_PALETTE, WATER_PALETTE } from './status';
+export { STATUS_NAMES, STATUS_PRESETS, EFFECT_NAMES, DEFAULT_PALETTE, DEFAULT_STATUS, WATER_PALETTE } from './status';
 
 export interface StatusChangeDetail {
-  oldStatus: StatusName | null;
-  newStatus: StatusName | null;
+  oldStatus: StatusName;
+  newStatus: StatusName;
 }
 
 /** Canvas padding around the pill, as multiples of the pill height (room for glow). */
@@ -47,7 +46,7 @@ const PALETTE_RATE = 5;
 /** Effect crossfade rate (1/s) when switching fire <-> water. */
 const EFFECT_RATE = 4;
 /** Default engraving: shallow surface groove, moderately frosted floor. */
-const DEFAULT_ETCH: EtchParams = { mode: 1, depth: 0.012, roughness: 0.6, bevel: 1, interaction: 1 };
+const DEFAULT_ETCH: EtchParams = { mode: 2, depth: 0, roughness: 1, bevel: 0.41, interaction: 2.5 };
 
 // The shadow template is built on first use, not at import time, so the
 // module can be imported on a server (Next.js, Nuxt, SvelteKit, Angular
@@ -109,7 +108,7 @@ export class GlassButton extends BaseElement {
   #explicit: Partial<Params> = {};
   /** Effective parameters: defaults, then status preset, then explicit. */
   #effective: Params = defaults();
-  #status: StatusName | null = null;
+  #status: StatusName = DEFAULT_STATUS;
   #effect: EffectName = 'fire';
   /** Eased 0 (fire) .. 1 (water) and its target. */
   #effectMix = 0;
@@ -118,8 +117,8 @@ export class GlassButton extends BaseElement {
   #glyphDirty = true;
   #lastLayout: { w: number; h: number; dpr: number } | null = null;
   /** Palette uploaded to the GPU (eased) and the one it is easing toward. */
-  readonly #palette = flattenPalette(DEFAULT_PALETTE);
-  readonly #paletteTarget = flattenPalette(DEFAULT_PALETTE);
+  readonly #palette = flattenPalette(STATUS_PRESETS[DEFAULT_STATUS].palette);
+  readonly #paletteTarget = flattenPalette(STATUS_PRESETS[DEFAULT_STATUS].palette);
   #paletteSettled = true;
   #hasRendered = false;
   readonly #frame: HTMLDivElement;
@@ -173,10 +172,11 @@ export class GlassButton extends BaseElement {
   }
 
   /**
-   * Status mode: recolours the fire, rim and floor glow, shows the matching
-   * icon and applies the preset's parameter nudges. null is the default look.
+   * Status mode: recolours the effect, rim and floor glow, shows the matching
+   * icon and applies the preset's parameter nudges. A missing or invalid
+   * attribute means `unknown`. Setting null removes the attribute.
    */
-  get status(): StatusName | null {
+  get status(): StatusName {
     return this.#status;
   }
 
@@ -319,7 +319,7 @@ export class GlassButton extends BaseElement {
       return;
     }
     if (name === 'status') {
-      const next = isStatus(value) ? value : null;
+      const next: StatusName = isStatus(value) ? value : DEFAULT_STATUS;
       if (next === this.#status) return;
       const old = this.#status;
       this.#status = next;
@@ -357,14 +357,13 @@ export class GlassButton extends BaseElement {
 
   #recomputeParams(): void {
     const effectPreset = EFFECT_PRESETS[this.#effect].params;
-    const statusPreset = this.#status ? STATUS_PRESETS[this.#status].params : {};
+    const statusPreset = STATUS_PRESETS[this.#status].params;
     this.#effective = { ...defaults(), ...effectPreset, ...statusPreset, ...this.#explicit };
   }
 
   #applyStatus(): void {
-    const preset = this.#status ? STATUS_PRESETS[this.#status] : null;
-    const effectDefault = this.#effect === 'water' ? WATER_PALETTE : DEFAULT_PALETTE;
-    const palette = this.#customPalette ?? preset?.palette ?? effectDefault;
+    const preset = STATUS_PRESETS[this.#status];
+    const palette = this.#customPalette ?? preset.palette;
     flattenPalette(palette, this.#paletteTarget);
     if (this.#hasRendered) {
       this.#paletteSettled = false;   // crossfade from the current colours
@@ -374,7 +373,7 @@ export class GlassButton extends BaseElement {
     }
     this.style.setProperty('--gb-icon-color', palette.icon);
     for (const [k, v] of Object.entries(paletteCssVars(palette))) this.style.setProperty(k, v);
-    this.#srStatus.textContent = preset ? `Status: ${preset.label}` : '';
+    this.#srStatus.textContent = `Status: ${preset.label}`;
     this.#recomputeParams();
     this.#renderIcon();
     this.#glyphDirty = true;
@@ -383,13 +382,12 @@ export class GlassButton extends BaseElement {
   }
 
   #renderIcon(): void {
-    const preset = this.#status ? STATUS_PRESETS[this.#status] : null;
+    const preset = STATUS_PRESETS[this.#status];
     const slot = this.#icon.querySelector('slot')!;
-    const hide = !preset || this.getAttribute('icon') === 'none';
-    this.#icon.toggleAttribute('hidden', hide);
+    this.#icon.toggleAttribute('hidden', this.getAttribute('icon') === 'none');
     // Built-in icon is the slot's fallback content; a consumer's slot="icon"
     // element replaces it automatically.
-    slot.innerHTML = preset ? ICONS[preset.icon] : '';
+    slot.innerHTML = ICONS[preset.icon];
   }
 
   /** Ease the effect crossfade; returns true when settled. */
@@ -541,11 +539,11 @@ export class GlassButton extends BaseElement {
     const iconSlot = this.#icon.querySelector('slot') as HTMLSlotElement;
     // No `flatten`: that would return the slot's fallback (our own SVG).
     const customIcon = iconSlot.assignedNodes().length > 0;
-    const preset = this.#status ? STATUS_PRESETS[this.#status] : null;
+    const preset = STATUS_PRESETS[this.#status];
     const iconVisible = !this.#icon.hasAttribute('hidden');
     let iconSvg: string | null = null;
     let iconBox: Box | null = null;
-    if (preset && iconVisible && !customIcon) {
+    if (iconVisible && !customIcon) {
       iconSvg = ICONS[preset.icon];
       iconBox = toBox(this.#icon.getBoundingClientRect());
     }

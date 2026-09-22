@@ -6,8 +6,8 @@ describe('params', () => {
     const d = defaults();
     expect(Object.keys(d)).toHaveLength(11);
     expect(PARAM_ATTRS).toHaveLength(11);
-    expect(d.glassOpacity).toBe(0.86);
-    expect(d.intensity).toBe(1);
+    expect(d.glassOpacity).toBe(0.29);
+    expect(d.intensity).toBe(1.59);
   });
 
   it('returns a fresh object from defaults()', () => {
@@ -26,6 +26,7 @@ describe('params', () => {
     const def = PARAM_DEFS.find((p) => p.name === 'turbulence')!;
     expect(parseParam(def, 'abc')).toBe(def.def);
     expect(parseParam(def, null)).toBe(def.def);
+    expect(def.def).toBe(0.3);
     expect(parseParam(def, undefined)).toBe(def.def);
     expect(parseParam(def, '')).toBe(def.def);
   });

@@ -65,6 +65,8 @@ describe('parameters', () => {
     expect(el.bloom).toBe(3);
     el.setAttribute('bloom', 'garbage');
     expect(el.bloom).toBe(1);
+    el.setAttribute('turbulence', 'garbage');
+    expect(el.turbulence).toBe(0.3);
   });
 
   it('reads attributes present before upgrade', () => {
@@ -78,15 +80,15 @@ describe('parameters', () => {
     expect(Object.keys(el.params)).toHaveLength(11);
     el.params = { speed: 2 };
     expect(el.speed).toBe(2);
-    expect(el.glassOpacity).toBe(0.86);
+    expect(el.glassOpacity).toBe(0.29);
     expect(el.getAttribute('speed')).toBe('2');
   });
 
   it('exposes a defensive copy of the defaults', () => {
     const d = GlassButton.defaults;
-    expect(d.glassOpacity).toBe(0.86);
+    expect(d.glassOpacity).toBe(0.29);
     d.glassOpacity = 0;
-    expect(GlassButton.defaults.glassOpacity).toBe(0.86);
+    expect(GlassButton.defaults.glassOpacity).toBe(0.29);
   });
 });
 
@@ -194,12 +196,12 @@ describe('lifecycle', () => {
 });
 
 describe('status', () => {
-  it('has no status by default and renders no icon or status text', () => {
+  it('defaults to unknown, with its icon and status text', () => {
     const el = mount();
-    expect(el.status).toBeNull();
+    expect(el.status).toBe('unknown');
     const root = el.shadowRoot!;
-    expect(root.querySelector('.icon svg')).toBeNull();
-    expect(root.querySelector('.sr-status')!.textContent).toBe('');
+    expect(root.querySelector('.icon svg')).not.toBeNull();
+    expect(root.querySelector('.sr-status')!.textContent).toBe('Status: unknown');
   });
 
   it('reflects status between attribute and property and renders the matching icon', () => {
@@ -214,11 +216,14 @@ describe('status', () => {
     expect(root.querySelector('.icon svg path')!.getAttribute('d')).toContain('8.8');
   });
 
-  it('ignores invalid statuses', () => {
+  it('treats invalid statuses as unknown', () => {
     const el = mount();
+    el.status = 'healthy';
     el.setAttribute('status', 'bogus');
-    expect(el.status).toBeNull();
-    expect(el.shadowRoot!.querySelector('.icon svg')).toBeNull();
+    expect(el.status).toBe('unknown');
+    el.status = null;
+    expect(el.hasAttribute('status')).toBe(false);
+    expect(el.status).toBe('unknown');
   });
 
   it('fires statuschange with old and new values', () => {
@@ -226,19 +231,18 @@ describe('status', () => {
     const events: Array<{ oldStatus: string | null; newStatus: string | null }> = [];
     el.addEventListener('statuschange', (e) => events.push((e as CustomEvent).detail));
     el.status = 'warning';
-    el.status = 'unknown';
+    el.status = 'trouble';
     el.status = null;
     expect(events).toEqual([
-      { oldStatus: null, newStatus: 'warning' },
-      { oldStatus: 'warning', newStatus: 'unknown' },
-      { oldStatus: 'unknown', newStatus: null },
+      { oldStatus: 'unknown', newStatus: 'warning' },
+      { oldStatus: 'warning', newStatus: 'trouble' },
+      { oldStatus: 'trouble', newStatus: 'unknown' },
     ]);
   });
 
-  it('applies preset parameter nudges under explicit attributes', () => {
+  it('layers explicit attributes over defaults and status presets', () => {
     const el = mount();
-    el.status = 'unknown';
-    expect(el.level).toBeCloseTo(0.85);
+    expect(el.level).toBe(1);
     el.level = 1.5;
     expect(el.level).toBe(1.5);
     el.status = 'healthy';
@@ -283,16 +287,15 @@ describe('effect', () => {
     expect(el.effect).toBe('fire');
   });
 
-  it('uses the aqua palette for water without a status, and the status palette with one', () => {
+  it('keeps the status palette across effects', () => {
     const el = mount();
+    expect(el.style.getPropertyValue('--gb-icon-color')).toBe('#66b8ff');
     el.effect = 'water';
-    expect(el.style.getPropertyValue('--gb-icon-color')).toBe('#5fd4ff');
+    expect(el.style.getPropertyValue('--gb-icon-color')).toBe('#66b8ff');
     el.status = 'healthy';
     expect(el.style.getPropertyValue('--gb-icon-color')).toBe('#7df59a');
     el.status = null;
-    expect(el.style.getPropertyValue('--gb-icon-color')).toBe('#5fd4ff');
-    el.effect = 'fire';
-    expect(el.style.getPropertyValue('--gb-icon-color')).toBe('#ffb864');
+    expect(el.style.getPropertyValue('--gb-icon-color')).toBe('#66b8ff');
   });
 });
 

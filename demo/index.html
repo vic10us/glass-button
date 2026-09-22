@@ -95,7 +95,6 @@
       <option value="water">water</option>
     </select></label>
     <label>Status <select id="hero-status">
-      <option value="">none</option>
       <option value="healthy">healthy</option>
       <option value="warning">warning</option>
       <option value="trouble">trouble</option>
@@ -107,7 +106,7 @@
   </div>
 
   <h2>Status modes</h2>
-  <p>The <code>status</code> attribute recolours the effect, the glass rim and the floor glow, shows a matching icon and nudges a few parameters. Changing it crossfades the palette. <code>icon="none"</code> hides the icon; <code>slot="icon"</code> supplies your own.</p>
+  <p>The <code>status</code> attribute recolours the effect, the glass rim and the floor glow and shows a matching icon; <code>unknown</code> is the default. Changing it crossfades the palette. <code>icon="none"</code> hides the icon; <code>slot="icon"</code> supplies your own.</p>
   <section id="statuses" class="grid">
     <glass-button class="l" status="healthy">Healthy</glass-button>
     <glass-button class="l" status="warning">Warning</glass-button>
@@ -359,7 +358,7 @@
   // ---- serialise <-> attribute string
   function toAttrs(includeDefaults = false) {
     const parts = [];
-    if (state.status || includeDefaults) parts.push(`status="${state.status ?? ''}"`);
+    if (state.status !== 'unknown' || includeDefaults) parts.push(`status="${state.status}"`);
     if (state.effect !== 'fire' || includeDefaults) parts.push(`effect="${state.effect}"`);
     for (const k of Object.keys(defaults)) {
       if (includeDefaults || Math.abs(state.params[k] - defaults[k]) > 1e-9) parts.push(`${attrOf[k]}="${fmt(state.params[k])}"`);
@@ -371,14 +370,14 @@
   }
   // Accepts name="value", name=value, name: value, comma/space/newline separated.
   function parseAttrs(text) {
-    const next = { params: { ...defaults }, etch: { ...etchDefaults }, status: null, effect: 'fire' };
+    const next = { params: { ...defaults }, etch: { ...etchDefaults }, status: 'unknown', effect: 'fire' };
     const re = /([a-z][a-z-]*)\s*[=:]\s*(?:"([^"]*)"|'([^']*)'|([^\s,;]+))/gi;
     const unknown = [];
     let m;
     while ((m = re.exec(text))) {
       const key = m[1].toLowerCase();
       const raw = m[2] ?? m[3] ?? m[4] ?? '';
-      if (key === 'status') { next.status = STATUSES.includes(raw) ? raw : null; continue; }
+      if (key === 'status') { next.status = STATUSES.includes(raw) ? raw : 'unknown'; continue; }
       if (key === 'effect') { next.effect = raw === 'water' ? 'water' : 'fire'; continue; }
       if (key.startsWith('etch-')) {
         const ek = key.slice(5);
@@ -436,7 +435,7 @@
     etchInputs[k] = slider(etchRoot, k, k, [min, max, step], () => state.etch[k], (v) => { state.etch[k] = v; }, k === 'depth' ? 4 : 2);
   }
   etchModeSelect.addEventListener('change', () => { state.etch.mode = Number(etchModeSelect.value); commit(); });
-  statusSelect.addEventListener('change', () => { state.status = statusSelect.value || null; commit(); });
+  statusSelect.addEventListener('change', () => { state.status = statusSelect.value; commit(); });
   effectSelect.addEventListener('change', () => { state.effect = effectSelect.value; commit(); });
 
   // ---- render widgets, config text and URL from state
@@ -444,7 +443,7 @@
     for (const k of Object.keys(inputs)) inputs[k].refresh();
     for (const k of Object.keys(etchInputs)) etchInputs[k].refresh();
     etchModeSelect.value = String(state.etch.mode);
-    statusSelect.value = state.status ?? '';
+    statusSelect.value = state.status;
     effectSelect.value = state.effect;
     if (document.activeElement !== configBox) configBox.value = toAttrs(showAll.checked) || '(all defaults — edit here or move a slider)';
     const url = new URL(location.href);
@@ -472,7 +471,7 @@
     try { await navigator.clipboard.writeText(toAttrs(showAll.checked)); } catch { /* clipboard may be unavailable */ }
   });
   document.getElementById('reset').addEventListener('click', () => {
-    Object.assign(state, { params: { ...defaults }, etch: { ...etchDefaults }, status: null, effect: 'fire' });
+    Object.assign(state, { params: { ...defaults }, etch: { ...etchDefaults }, status: 'unknown', effect: 'fire' });
     errorBox.hidden = true;
     commit();
   });

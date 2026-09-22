@@ -36,17 +36,17 @@ export interface ParamDef {
 
 /** Order matters: the renderer packs these into `uParams` in this order. */
 export const PARAM_DEFS: readonly ParamDef[] = [
-  { name: 'intensity', attr: 'intensity', def: 1, min: 0, max: 3, label: 'Effect brightness and density' },
+  { name: 'intensity', attr: 'intensity', def: 1.59, min: 0, max: 3, label: 'Effect brightness and density' },
   { name: 'level', attr: 'level', def: 1, min: 0, max: 2.5, label: 'How high the effect reaches: flame height or water level' },
-  { name: 'turbulence', attr: 'turbulence', def: 1, min: 0, max: 3, label: 'Turbulence: curl of the flames or wave amplitude' },
-  { name: 'speed', attr: 'speed', def: 1, min: 0, max: 4, label: 'Time scale of the effect' },
-  { name: 'glassOpacity', attr: 'glass-opacity', def: 0.86, min: 0, max: 1, label: 'Darkness of the glass body' },
+  { name: 'turbulence', attr: 'turbulence', def: 0.3, min: 0, max: 3, label: 'Turbulence: curl of the flames or wave amplitude' },
+  { name: 'speed', attr: 'speed', def: 0.8, min: 0, max: 4, label: 'Time scale of the effect' },
+  { name: 'glassOpacity', attr: 'glass-opacity', def: 0.29, min: 0, max: 1, label: 'Darkness of the glass body' },
   { name: 'glassThickness', attr: 'glass-thickness', def: 1, min: 0.2, max: 3, label: 'Curvature and width of the edge zone' },
-  { name: 'refraction', attr: 'refraction', def: 1, min: 0, max: 3, label: 'Distortion of the effect through the curved edge' },
+  { name: 'refraction', attr: 'refraction', def: 3, min: 0, max: 3, label: 'Distortion of the effect through the curved edge' },
   { name: 'bloom', attr: 'bloom', def: 1, min: 0, max: 3, label: 'Bloom and light leak' },
   { name: 'reflection', attr: 'reflection', def: 1, min: 0, max: 3, label: 'Fresnel and environment reflection' },
-  { name: 'particles', attr: 'particles', def: 1, min: 0, max: 4, label: 'Particle count: embers or bubbles' },
-  { name: 'shimmer', attr: 'shimmer', def: 1, min: 0, max: 3, label: 'Shimmer: heat haze or ripple detail' },
+  { name: 'particles', attr: 'particles', def: 0.31, min: 0, max: 4, label: 'Particle count: embers or bubbles' },
+  { name: 'shimmer', attr: 'shimmer', def: 0, min: 0, max: 3, label: 'Shimmer: heat haze or ripple detail' },
 ];
 
 /** Attribute names, suitable for `observedAttributes`. */

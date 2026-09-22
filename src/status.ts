@@ -11,6 +11,8 @@ import type { Params } from './params';
 
 export const STATUS_NAMES = ['healthy', 'warning', 'trouble', 'unknown'] as const;
 export type StatusName = (typeof STATUS_NAMES)[number];
+/** Status used when the attribute is absent or invalid. */
+export const DEFAULT_STATUS: StatusName = 'unknown';
 
 export type RGB = readonly [number, number, number];
 
@@ -107,8 +109,7 @@ export const STATUS_PRESETS: Readonly<Record<StatusName, StatusPreset>> = {
       rim: [0.35, 0.62, 1.0],
       icon: '#66b8ff',
     },
-    // Plasma rather than combustion: lower, smoother, more sparkle.
-    params: { level: 0.85, turbulence: 1.3, particles: 2.2, intensity: 0.95 },
+    params: {},
     icon: 'question',
     label: 'unknown',
   },
