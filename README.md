@@ -366,6 +366,10 @@ The demo has a background switcher (bottom left) with the material test set
 photographic backdrop and paper, plus a custom colour. The choice persists
 and is addressable as `?bg=<key|#hex>`.
 
+A "CSS fallback beside" toggle under the hero shows the same button rendered
+by the CSS fallback next to the WebGL2 one, following every control, so the
+two can be compared while tuning (`?compare=0` hides it).
+
 The tuning panel's Configuration box lists everything that differs from the
 defaults as attributes (status, effect, parameters and `etch-*` for the
 engraving). It is editable: paste or type `name="value"` pairs and press

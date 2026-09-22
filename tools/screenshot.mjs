@@ -82,6 +82,8 @@ for (const scene of scenes) {
   await page.waitForFunction(() => customElements.get('glass-button') !== undefined, null, { polling: 250, timeout: 90000 });
   // The fixed tuning panel would paint over element screenshots.
   await page.addStyleTag({ content: '.panel, .panel-toggle, .bgbar { display: none !important; }' });
+  // The hero's CSS-fallback twin is for interactive comparison; captures show the GL hero alone unless asked.
+  if (!flags.compare) await page.evaluate(() => document.getElementById('hero')?.classList.remove('compare'));
 
   const renderer = await page.evaluate(() => document.querySelector('glass-button')?.dataset.renderer);
   const hero = page.locator('#hero');

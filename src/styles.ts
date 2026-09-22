@@ -210,12 +210,14 @@ button:disabled {
 
 /* Hover and press: the effect rises and brightens, as in the GL path. */
 :host([data-renderer="css"]) button:hover::before,
+:host([data-renderer="css"][data-force-hover]) button::before,
 :host([data-renderer="css"][data-pressed]) button::before {
   opacity: 1;
   transform: scaleY(1.12);
 }
 
-:host([data-renderer="css"]) button:hover {
+:host([data-renderer="css"]) button:hover,
+:host([data-renderer="css"][data-force-hover]) button {
   box-shadow:
     inset 0 1px 0 rgba(225, 238, 255, 0.65),
     inset 0 0 0 1px color-mix(in srgb, var(--gb-fx-rim) 40%, rgba(170, 195, 230, 0.15)),

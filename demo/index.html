@@ -19,6 +19,11 @@
   pre { font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--code-fg); background: var(--code-bg); border: 1px solid var(--border); padding: 14px 16px; border-radius: 12px; overflow: auto; }
   section.stage { display: grid; place-items: center; padding: 96px 24px 150px; }
   #hero { padding-bottom: 110px; }
+  .hero-stage { display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-start; gap: 40px 56px; }
+  .hero-cell { margin: 0; display: grid; justify-items: center; gap: 70px; }
+  .hero-cell figcaption { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  .hero-stage:not(.compare) .hero-twin, .hero-stage:not(.compare) figcaption { display: none; }
+  .hero-stage.compare glass-button { font-size: 34px; }
   .hero-controls { justify-content: center; margin: -40px 0 0; padding: 0 24px; }
   .hero-controls select { font: inherit; color: var(--fg); background: var(--ui-bg); border: 1px solid var(--border); border-radius: 8px; padding: 4px 8px; }
   .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 110px 40px; padding: 72px 24px 130px; justify-items: center; }
@@ -73,10 +78,18 @@
   <h1>glass-button</h1>
   <p class="lede">A real <code>&lt;button&gt;</code> under a WebGL2 render of thick glass with a procedural effect inside: fire or water, in four status colours. Hover, press, tab to it. Everything below is the same component at different sizes and settings.</p>
 
-  <section id="hero" class="stage">
-    <glass-button id="hero-button">Take Action →</glass-button>
+  <section id="hero" class="stage hero-stage">
+    <figure class="hero-cell">
+      <glass-button id="hero-button">Take Action →</glass-button>
+      <figcaption>WebGL2</figcaption>
+    </figure>
+    <figure class="hero-cell hero-twin">
+      <glass-button id="hero-fallback" data-renderer="css">Take Action →</glass-button>
+      <figcaption>CSS fallback</figcaption>
+    </figure>
   </section>
   <div class="controls hero-controls" aria-label="Hero button controls">
+    <label><input type="checkbox" id="compare" checked /> CSS fallback beside</label>
     <label>Effect <select id="hero-effect">
       <option value="fire">fire</option>
       <option value="water">water</option>
@@ -268,23 +281,46 @@
     else applyBackground(BACKGROUNDS[initial] ? initial : 'charcoal');
   }
   const hero = document.getElementById('hero-button');
+  const twin = document.getElementById('hero-fallback');
+  const heroes = () => [hero, twin];
+  const heroStage = document.getElementById('hero');
+  const compareBox = document.getElementById('compare');
+  function setCompare(on) {
+    heroStage.classList.toggle('compare', on);
+    compareBox.checked = on;
+    try { localStorage.setItem('gb-demo-compare', on ? '1' : '0'); } catch {}
+  }
+  compareBox.addEventListener('change', () => setCompare(compareBox.checked));
+  {
+    let saved = null;
+    try { saved = localStorage.getItem('gb-demo-compare'); } catch {}
+    const fromUrl = new URL(location.href).searchParams.get('compare');
+    setCompare(fromUrl !== null ? fromUrl !== '0' : saved !== '0');
+  }
 
   // ---- state toggles ---------------------------------------------------
   document.getElementById('hold-pressed').addEventListener('change', (e) => {
-    hero.toggleAttribute('data-pressed', e.target.checked);
-    hero.shadowRoot.querySelector('button').dispatchEvent(
-      new MouseEvent(e.target.checked ? 'pointerdown' : 'pointerup', { bubbles: true, button: 0 }),
-    );
+    for (const h of heroes()) {
+      h.toggleAttribute('data-pressed', e.target.checked);
+      h.shadowRoot.querySelector('button').dispatchEvent(
+        new MouseEvent(e.target.checked ? 'pointerdown' : 'pointerup', { bubbles: true, button: 0 }),
+      );
+    }
   });
   document.getElementById('force-hover').addEventListener('change', (e) => {
-    const b = hero.shadowRoot.querySelector('button');
-    const r = b.getBoundingClientRect();
-    b.dispatchEvent(new MouseEvent(e.target.checked ? 'pointerenter' : 'pointerleave', {
-      bubbles: true, clientX: r.left + r.width * 0.3, clientY: r.top + r.height * 0.4,
-    }));
+    for (const h of heroes()) {
+      const b = h.shadowRoot.querySelector('button');
+      const r = b.getBoundingClientRect();
+      b.dispatchEvent(new MouseEvent(e.target.checked ? 'pointerenter' : 'pointerleave', {
+        bubbles: true, clientX: r.left + r.width * 0.3, clientY: r.top + r.height * 0.4,
+      }));
+      // The CSS fallback's hover is a :hover rule; mirror it with a class the stylesheet can't see,
+      // so force the state through the same attribute the press uses instead.
+      h.toggleAttribute('data-force-hover', e.target.checked);
+    }
   });
   document.getElementById('disabled').addEventListener('change', (e) => {
-    hero.disabled = e.target.checked;
+    for (const h of heroes()) h.disabled = e.target.checked;
   });
   document.getElementById('reduced').addEventListener('change', (e) => {
     document.getElementById('reduced-button').reducedMotion = e.target.checked ? true : 'auto';
@@ -364,8 +400,10 @@
       el.params = state.params;
       el.etch = state.etch;
     }
-    hero.status = state.status;
-    hero.effect = state.effect;
+    for (const h of heroes()) {
+      h.status = state.status;
+      h.effect = state.effect;
+    }
   }
 
   // ---- widgets
