@@ -1,6 +1,6 @@
 {
   "name": "@vic10us/glass-button",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Photorealistic WebGL2 glass pill button with procedural fire/water inside it.",
   "keywords": [
     "web-component",
